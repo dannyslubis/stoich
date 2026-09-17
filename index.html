@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KemiLab: Simulasi Stoikiometri</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        /* === SETUP DASAR === */
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100vw; height: 100vh; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; overflow: hidden; font-family: 'VT323', monospace; color: white; touch-action: none; }
+        
+        /* === TRANSISI FADE === */
+        #fade-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000; z-index: 9999; pointer-events: none; opacity: 1; transition: opacity 250ms ease; }
+
+        /* === HUB CONTAINER (16:9) === */
+        #hub-container { position: absolute; width: 100%; height: 100%; max-width: calc(100vh * (16/9)); max-height: calc(100vw * (9/16)); aspect-ratio: 16/9; background-color: #000; image-rendering: pixelated; overflow: hidden; display: block; }
+        .hub-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: 100% 100%; display: none; }
+        .btn-hub { position: absolute; background: transparent; border: none; cursor: pointer; z-index: 10; }
+        .btn-hub:focus-visible { outline: 2px dashed #fff; outline-offset: -2px; background-color: rgba(255,255,255,0.2); }
+
+        /* === SIMULATION ENGINE CONTAINER === */
+        #engine-container { position: absolute; background-color: #000; display: none; transform-origin: center center; overflow: hidden; image-rendering: pixelated; }
+        .engine-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .engine-visual { position: absolute; background-size: 100% 100%; background-repeat: no-repeat; object-fit: contain; }
+        .engine-text { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; }
+        
+        /* Layer interaktif */
+        #layer-hitbox, #layer-popup { pointer-events: auto; }
+        #layer-popup { display: none; z-index: 100; }
+        .btn-engine { position: absolute; background: transparent; border: none; cursor: pointer; }
+        .btn-engine:focus-visible { outline: 2px dashed #fff; outline-offset: -2px; background-color: rgba(255,255,255,0.2); }
+
+        /* === ANIMASI === */
+        .anim-fade-in { animation: fadeIn 0.2s forwards; }
+        .anim-pop-in { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .anim-pop-in-slow { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="fade-overlay"></div>
+
+    <!-- MAIN HUB -->
+    <div id="hub-container">
+        <div id="hub_title" class="hub-screen" style="display: block; background-image: url('titlescreen.png');">
+            <button class="btn-hub" style="left: 37.5%; top: 55.55%; width: 25%; height: 22.22%;" onclick="hubGoTo('hub_menu')"></button>
+            <button class="btn-hub" style="left: 87.5%; top: 88.88%; width: 12.5%; height: 11.11%;" onclick="hubGoTo('hub_credits')"></button>
+        </div>
+        <div id="hub_credits" class="hub-screen" style="background-image: url('credits.png');">
+            <button class="btn-hub" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="hubGoTo('hub_title')"></button>
+        </div>
+        <div id="hub_menu" class="hub-screen" style="background-image: url('menuscreen.png');">
+            <button class="btn-hub" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="hubGoTo('hub_title')"></button>
+            <button class="btn-hub" style="left: 6.25%; top: 55.55%; width: 25%; height: 22.22%;" onclick="launchProject('project_mr.json')"></button>
+            <button class="btn-hub" style="left: 37.5%; top: 55.55%; width: 25%; height: 22.22%;" onclick="launchProject('project_mb.json')"></button>
+            <button class="btn-hub" style="left: 68.75%; top: 55.55%; width: 25%; height: 22.22%;" onclick="launchProject('project_lr.json')"></button>
+        </div>
+    </div>
+
+    <!-- SIMULATION ENGINE WRAPPER -->
+    <div id="engine-container">
+        <!-- Canvas opsional untuk partikel/rendering khusus -->
+        <canvas id="engine-canvas" class="engine-layer"></canvas>
+        <div id="layer-bg" class="engine-layer"></div>
+        <div id="layer-visuals" class="engine-layer"></div>
+        <div id="layer-texts" class="engine-layer"></div>
+        <div id="layer-hitbox" class="engine-layer"></div>
+        <div id="layer-popup" class="engine-layer">
+            <div id="popup-bg" class="engine-layer"></div>
+            <div id="popup-content" class="engine-layer"></div>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================================================
+           1. SISTEM TRANSISI & HUB
+           ========================================================================= */
+        const fadeEl = document.getElementById('fade-overlay');
+        const hubContainer = document.getElementById('hub-container');
+        const engineContainer = document.getElementById('engine-container');
+        let isTransitioning = false;
+        let currentApp = 'HUB'; // 'HUB' atau 'ENGINE'
+
+        function doFade(callback) {
+            if (isTransitioning) return;
+            isTransitioning = true;
+            fadeEl.style.opacity = '1';
+            setTimeout(() => {
+                callback();
+                setTimeout(() => {
+                    fadeEl.style.opacity = '0';
+                    setTimeout(() => isTransitioning = false, 250);
+                }, 50);
+            }, 250);
+        }
+
+        function hubGoTo(screenId) {
+            doFade(() => {
+                document.querySelectorAll('.hub-screen').forEach(el => el.style.display = 'none');
+                document.getElementById(screenId).style.display = 'block';
+            });
+        }
+
+        /* =========================================================================
+           2. ENGINE DATA-DRIVEN (JSON PARSER)
+           ========================================================================= */
+        let projectData = null;
+        let currentSceneId = null;
+
+        async function launchProject(jsonFilename) {
+            doFade(async () => {
+                try {
+                    // Fetch data JSON dari repository
+                    const response = await fetch(jsonFilename);
+                    if (!response.ok) throw new Error("Gagal memuat " + jsonFilename);
+                    projectData = await response.json();
+                    
+                    // Setup Engine Workspace
+                    hubContainer.style.display = 'none';
+                    engineContainer.style.display = 'block';
+                    currentApp = 'ENGINE';
+                    
+                    setupEngineScaling();
+                    
+                    // Route ke scene pertama otomatis (cari scene yang tidak punya awalan spesifik atau tentukan manual)
+                    // Untuk semua simulasi kita, stage awal diset dengan nama tertentu
+                    let startScene = Object.keys(projectData.scenes)[0]; 
+                    if(projectData.project_id === 'mole_bridge') startScene = 'scene_timbangan';
+                    if(projectData.project_id === 'limiting_reactant') startScene = 'stage_1';
+                    if(projectData.project_id === 'molecules') startScene = 'slide_a'; // Mulai dari slide a (tanpa titlescreen)
+                    
+                    renderScene(startScene);
+
+                } catch (error) {
+                    console.error(error);
+                    alert("Error memuat JSON. Pastikan Anda menjalankan web via Live Server / GitHub Pages.");
+                    // Kembali ke hub jika gagal
+                    hubContainer.style.display = 'block';
+                    engineContainer.style.display = 'none';
+                }
+            });
+        }
+
+        function setupEngineScaling() {
+            const grid = projectData.grid_size;
+            if (grid.width === '100%') {
+                // Skala Dinamis (Mole Bridge)
+                engineContainer.style.width = '100%';
+                engineContainer.style.height = '100%';
+                engineContainer.style.maxWidth = 'calc(100vh * (16/9))';
+                engineContainer.style.maxHeight = 'calc(100vw * (9/16))';
+                engineContainer.style.aspectRatio = '16/9';
+                engineContainer.style.transform = 'none';
+            } else {
+                // Skala Absolut Pixel (Molecules, Limiting Reactant)
+                engineContainer.style.width = grid.width + 'px';
+                engineContainer.style.height = grid.height + 'px';
+                engineContainer.style.maxWidth = 'none';
+                engineContainer.style.maxHeight = 'none';
+                engineContainer.style.aspectRatio = 'auto';
+                
+                // Kalkulasi transform
+                const scale = Math.min(window.innerWidth / grid.width, window.innerHeight / grid.height);
+                engineContainer.style.transform = `scale(${scale})`;
+            }
+        }
+
+        window.addEventListener('resize', () => { if(currentApp === 'ENGINE') setupEngineScaling(); });
+
+        /* =========================================================================
+           3. RENDERER (PENGGAMBAR LAYAR)
+           ========================================================================= */
+        function renderScene(sceneId) {
+            currentSceneId = sceneId;
+            const sceneData = projectData.scenes[sceneId];
+            
+            // Bersihkan Layar
+            document.getElementById('layer-bg').innerHTML = '';
+            document.getElementById('layer-visuals').innerHTML = '';
+            document.getElementById('layer-texts').innerHTML = '';
+            document.getElementById('layer-hitbox').innerHTML = '';
+
+            // 1. Gambar Background
+            if (sceneData.background) {
+                const bg = document.createElement('img');
+                bg.src = sceneData.background;
+                bg.className = 'engine-layer engine-visual';
+                bg.style.width = '100%'; bg.style.height = '100%';
+                document.getElementById('layer-bg').appendChild(bg);
+            }
+
+            // 2. Render Visuals Statis
+            if (sceneData.visuals) {
+                sceneData.visuals.forEach(v => {
+                    const el = document.createElement('img');
+                    if(v.src) el.src = v.src;
+                    el.id = v.id;
+                    el.className = `engine-visual ${v.anim ? 'anim-'+v.anim : ''}`;
+                    applyPosition(el, v);
+                    document.getElementById('layer-visuals').appendChild(el);
+                });
+            }
+
+            // 3. Render Hitboxes (Tombol)
+            if (sceneData.hitboxes) {
+                sceneData.hitboxes.forEach(hb => {
+                    const btn = document.createElement('button');
+                    btn.id = hb.id;
+                    btn.className = 'btn-engine';
+                    applyPosition(btn, hb);
+                    
+                    // Pasang Aksi
+                    btn.onclick = () => executeAction(hb);
+                    document.getElementById('layer-hitbox').appendChild(btn);
+                });
+            }
+
+            // 4. Handle Auto Next (Timer)
+            if (sceneData.auto_next) {
+                setTimeout(() => {
+                    if (currentSceneId === sceneId) {
+                        if(sceneData.auto_next.trigger_action) executeAction({ action: sceneData.auto_next.trigger_action });
+                        renderScene(sceneData.auto_next.target);
+                    }
+                }, sceneData.auto_next.delay_ms || sceneData.auto_next.delay);
+            }
+
+            // [CATATAN UNTUK KREATOR]
+            // Visual dinamis, teks kalkulasi (mol, massa, timer) membutuhkan Modul Logika khusus (State Manager)
+            // Di versi Engine ini, elemen dinamis dipanggil oleh fungsi trigger.
+        }
+
+        function renderPopup(popupId) {
+            const popData = projectData.popups[popupId];
+            const popLayer = document.getElementById('layer-popup');
+            const popBg = document.getElementById('popup-bg');
+            const popContent = document.getElementById('popup-content');
+            
+            popContent.innerHTML = ''; // Clear lama
+            popLayer.style.display = 'block';
+
+            if(popData.background_image) {
+                popBg.style.backgroundImage = `url('${popData.background_image}')`;
+                popBg.style.backgroundSize = '100% 100%';
+                popBg.style.backgroundColor = 'transparent';
+            } else if (popData.background_color) {
+                popBg.style.backgroundImage = 'none';
+                popBg.style.backgroundColor = popData.background_color;
+            }
+
+            if(popData.visuals) {
+                popData.visuals.forEach(v => {
+                    const el = document.createElement('img');
+                    el.src = v.src; el.className = `engine-visual anim-${v.anim || 'pop-in'}`;
+                    applyPosition(el, v);
+                    popContent.appendChild(el);
+                });
+            }
+
+            if(popData.hitboxes) {
+                popData.hitboxes.forEach(hb => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-engine';
+                    applyPosition(btn, hb);
+                    btn.onclick = () => executeAction(hb);
+                    popContent.appendChild(btn);
+                });
+            }
+        }
+
+        /* =========================================================================
+           4. ALAT BANTU KOORDINAT
+           ========================================================================= */
+        function applyPosition(element, data) {
+            // Jika menggunakan format Tile 'b8' (Molecules)
+            if (data.startTile) {
+                const ts = projectData.grid_size.tile_size || 32;
+                const cols = "abcdefghijklmnop";
+                let startX = cols.indexOf(data.startTile.charAt(0).toLowerCase()) * ts;
+                let startY = (parseInt(data.startTile.substring(1)) - 1) * ts;
+                
+                element.style.left = startX + 'px';
+                element.style.top = startY + 'px';
+                
+                if(data.endTile) {
+                    let endX = cols.indexOf(data.endTile.charAt(0).toLowerCase()) * ts;
+                    let endY = (parseInt(data.endTile.substring(1)) - 1) * ts;
+                    element.style.width = ((endX - startX) + ts) + 'px';
+                    element.style.height = ((endY - startY) + ts) + 'px';
+                } else if (data.width_tiles) {
+                    element.style.width = (data.width_tiles * ts) + 'px';
+                    element.style.height = ((data.height_tiles || 1) * ts) + 'px';
+                }
+            } 
+            // Jika menggunakan format posisi absolut/persentase (Limiting/MoleBridge)
+            else if (data.position) {
+                const p = data.position;
+                if(p.left !== undefined) element.style.left = typeof p.left === 'number' ? p.left+'px' : p.left;
+                if(p.top !== undefined) element.style.top = typeof p.top === 'number' ? p.top+'px' : p.top;
+                if(p.width !== undefined) element.style.width = typeof p.width === 'number' ? p.width+'px' : p.width;
+                if(p.height !== undefined) element.style.height = typeof p.height === 'number' ? p.height+'px' : p.height;
+            } else {
+                element.style.width = '100%'; element.style.height = '100%';
+            }
+        }
+
+        /* =========================================================================
+           5. ACTION ROUTER (PENGHUBUNG JSON KE LOGIKA JS)
+           ========================================================================= */
+        function executeAction(actionData) {
+            const action = actionData.action;
+
+            // --- FUNGSI UNIVERSAL ---
+            if (action === 'GOTO_SCENE') {
+                renderScene(actionData.target);
+            } 
+            else if (action === 'OPEN_POPUP') {
+                renderPopup(actionData.target);
+            } 
+            else if (action === 'CLOSE_POPUP') {
+                document.getElementById('layer-popup').style.display = 'none';
+            } 
+            else if (action === 'RETURN_TO_MAIN_MENU') {
+                // Membersihkan engine dan kembali ke hub
+                document.getElementById('layer-popup').style.display = 'none';
+                hubContainer.style.display = 'block';
+                engineContainer.style.display = 'none';
+                currentApp = 'HUB';
+                hubGoTo('hub_menu');
+            }
+            
+            // --- FUNGSI SPESIFIK SIMULASI ---
+            // Di sinilah Logic Controller khusus (Timbangan, Kuis, Reaksi) akan dipanggil
+            else {
+                console.log(`Menjalankan aksi spesifik: ${action} dengan nilai ${actionData.value || actionData.target}`);
+                // [Tahap Berikutnya: Mengaitkan fungsi spesifik JS seperti tambahMassa(), dll]
+            }
+        }
+
+        /* Keyboard Routing Global */
+        window.addEventListener('keydown', (e) => {
+            if (currentApp === 'HUB') {
+                if (e.key === 'Escape' && document.getElementById('hub_title').style.display !== 'block') {
+                    hubGoTo('hub_title');
+                }
+            } else if (currentApp === 'ENGINE') {
+                if (e.key === 'Escape') {
+                    // Panggil popup exit_confirm jika esc ditekan di dalam engine
+                    if(projectData && projectData.popups && projectData.popups['exit_confirm']) {
+                        renderPopup('exit_confirm');
+                    }
+                }
+            }
+        });
+
+        // Tampilkan Hub saat pertama kali dimuat
+        window.onload = () => { setTimeout(() => { fadeEl.style.opacity = '0'; }, 100); };
+    </script>
+</body>
+</html>
