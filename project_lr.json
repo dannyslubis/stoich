@@ -1,0 +1,136 @@
+{
+  "project_id": "limiting_reactant",
+  "grid_size": { "width": 512, "height": 288, "tile_size": 32 },
+  "database": {
+    "reactions": {
+      "rx1": { 
+        "prefix": "lrnacl", 
+        "layout": 3, 
+        "reactA": { "name": "Na", "ar": 23, "coeff": 2, "type": "solid" }, 
+        "reactB": { "name": "Cl<sub>2</sub>", "ar": 71, "coeff": 1, "type": "gas" }, 
+        "productA": { "name": "NaCl", "ar": 58.5, "coeff": 2, "type": "solid" } 
+      },
+      "rx2": { 
+        "prefix": "lrhho", 
+        "layout": 3, 
+        "reactA": { "name": "H<sub>2</sub>", "ar": 2, "coeff": 2, "type": "gas" }, 
+        "reactB": { "name": "O<sub>2</sub>", "ar": 32, "coeff": 1, "type": "gas" }, 
+        "productA": { "name": "H<sub>2</sub>O", "ar": 18, "coeff": 2, "type": "liquid" } 
+      },
+      "rx3": { 
+        "prefix": "lrnhhh", 
+        "layout": 3, 
+        "reactA": { "name": "N<sub>2</sub>", "ar": 28, "coeff": 1, "type": "gas" }, 
+        "reactB": { "name": "H<sub>2</sub>", "ar": 2, "coeff": 3, "type": "gas" }, 
+        "productA": { "name": "NH<sub>3</sub>", "ar": 17, "coeff": 2, "type": "gas" } 
+      },
+      "rx4": { 
+        "prefix": "lrcoo", 
+        "layout": 4, 
+        "reactA": { "name": "CH<sub>4</sub>", "ar": 16, "coeff": 1, "type": "gas" }, 
+        "reactB": { "name": "O<sub>2</sub>", "ar": 32, "coeff": 2, "type": "gas" }, 
+        "productA": { "name": "CO<sub>2</sub>", "ar": 44, "coeff": 1, "type": "gas" }, 
+        "productB": { "name": "H<sub>2</sub>O", "ar": 18, "coeff": 2, "type": "liquid" } 
+      }
+    },
+    "scale_settings": {
+      "mol": { "max": 10, "step": 0.1, "unit": "mol", "holdSpeed": 100 },
+      "mass": { "max": 100, "step": 0.05, "unit": "g", "holdSpeed": 50 }
+    }
+  },
+  "assets": [
+    "kanvaslr.png", "kanvaslrr.png", "kanvaslrt.png", "lrshelf.png", "lrpopupexit.png",
+    "statbarlr.png", "statbarlrm.png", "statbarlrr.png", "statbarlrt.png", "keybarlr.png", "keybarlrt1.png", "keybarlrt2.png",
+    "lrnacl1.png", "lrnacl2.png", "lrnacl3.png",
+    "lrhho1.png", "lrhho2.png", "lrhho3.png",
+    "lrnhhh1.png", "lrnhhh2.png", "lrnhhh3.png",
+    "lrcoo1.png", "lrcoo2.png", "lrcoo3.png"
+  ],
+  "scenes": {
+    "stage_1": {
+      "background": "kanvaslr.png",
+      "visuals": [
+        { "id": "vis-reactant", "type": "dynamic_image", "src_pattern": "{prefix}1.png" },
+        { "id": "vis-keybar-s1", "src": "keybarlr.png" },
+        { "id": "vis-statbar", "type": "dynamic_image", "src_pattern_mode": { "mol": "statbarlr.png", "mass": "statbarlrm.png" } }
+      ],
+      "dynamic_texts": [
+        { "id": "disp-react-a", "type": "reactant_amount", "target": "A", "position": { "left": 96, "top": 160, "width": 96, "height": 32 } },
+        { "id": "disp-react-b", "type": "reactant_amount", "target": "B", "position": { "left": 320, "top": 160, "width": 96, "height": 32 } }
+      ],
+      "hitboxes": [
+        { "id": "btn-close", "position": { "left": 480, "top": 0, "width": 32, "height": 32 }, "action": "OPEN_POPUP", "target": "exit_confirm" },
+        { "id": "btn-shelf", "position": { "left": 288, "top": 0, "width": 96, "height": 32 }, "action": "OPEN_POPUP", "target": "shelf" },
+        { "id": "btn-mode", "position": { "left": 384, "top": 0, "width": 96, "height": 32 }, "action": "TOGGLE_MODE" },
+        { "id": "btn-min-a", "position": { "left": 64, "top": 160, "width": 32, "height": 32 }, "action": "HOLD_MODIFY_INVENTORY", "target": "reactantA", "isAdd": false },
+        { "id": "btn-plus-a", "position": { "left": 192, "top": 160, "width": 32, "height": 32 }, "action": "HOLD_MODIFY_INVENTORY", "target": "reactantA", "isAdd": true },
+        { "id": "btn-min-b", "position": { "left": 288, "top": 160, "width": 32, "height": 32 }, "action": "HOLD_MODIFY_INVENTORY", "target": "reactantB", "isAdd": false },
+        { "id": "btn-plus-b", "position": { "left": 416, "top": 160, "width": 32, "height": 32 }, "action": "HOLD_MODIFY_INVENTORY", "target": "reactantB", "isAdd": true },
+        { "id": "btn-next", "position": { "left": 192, "top": 224, "width": 128, "height": 32 }, "action": "GOTO_SCENE", "target": "stage_2" }
+      ]
+    },
+    "stage_2": {
+      "background": "kanvaslrr.png",
+      "visuals": [
+        { "id": "vis-reactant", "type": "dynamic_image", "src_pattern": "{prefix}2.png" },
+        { "id": "vis-statbar", "src": "statbarlrr.png" }
+      ],
+      "dynamic_texts": [
+        { "id": "stg2-mass-a", "type": "info_row", "target": "A", "dataType": "mass", "position": { "left": 64, "top": 96, "width": 128 } },
+        { "id": "stg2-mol-a", "type": "info_row", "target": "A", "dataType": "mol", "position": { "left": 64, "top": 120, "width": 128 } },
+        { "id": "stg2-coef-a", "type": "info_row", "target": "A", "dataType": "coef", "position": { "left": 64, "top": 144, "width": 128 } },
+        { "id": "stg2-ratio-a", "type": "info_row", "target": "A", "dataType": "ratio", "position": { "left": 64, "top": 168, "width": 128 } },
+        { "id": "stg2-mass-b", "type": "info_row", "target": "B", "dataType": "mass", "position": { "left": 320, "top": 96, "width": 128 } },
+        { "id": "stg2-mol-b", "type": "info_row", "target": "B", "dataType": "mol", "position": { "left": 320, "top": 120, "width": 128 } },
+        { "id": "stg2-coef-b", "type": "info_row", "target": "B", "dataType": "coef", "position": { "left": 320, "top": 144, "width": 128 } },
+        { "id": "stg2-ratio-b", "type": "info_row", "target": "B", "dataType": "ratio", "position": { "left": 320, "top": 168, "width": 128 } },
+        { "id": "stg2-conclusion", "type": "conclusion_text", "position": { "left": 32, "top": 192, "width": 448 } }
+      ],
+      "hitboxes": [
+        { "id": "btn-close", "position": { "left": 480, "top": 0, "width": 32, "height": 32 }, "action": "OPEN_POPUP", "target": "exit_confirm" },
+        { "id": "btn-back-stg1", "position": { "left": 32, "top": 224, "width": 128, "height": 32 }, "action": "GOTO_SCENE", "target": "stage_1" },
+        { "id": "btn-to-stg3", "position": { "left": 352, "top": 224, "width": 128, "height": 32 }, "action": "GOTO_SCENE", "target": "stage_3" }
+      ]
+    },
+    "stage_3": {
+      "background": "kanvaslrt.png",
+      "visuals": [
+        { "id": "vis-reactant", "type": "dynamic_image", "src_pattern": "{prefix}3.png" },
+        { "id": "vis-statbar", "src": "statbarlrt.png" },
+        { "id": "vis-keybar-s3-a", "type": "dynamic_image", "src_pattern_limit": "keybarlrt{status}.png", "position": { "width": 96, "height": 32 } },
+        { "id": "vis-keybar-s3-b", "type": "dynamic_image", "src_pattern_limit": "keybarlrt{status}.png", "position": { "width": 96, "height": 32 } }
+      ],
+      "dynamic_texts": [
+        { "id": "mrs_table", "type": "mrs_table_dynamic_layout" }
+      ],
+      "hitboxes": [
+        { "id": "btn-close", "position": { "left": 480, "top": 0, "width": 32, "height": 32 }, "action": "OPEN_POPUP", "target": "exit_confirm" },
+        { "id": "btn-restart", "position": { "left": 384, "top": 0, "width": 96, "height": 32 }, "action": "RESTART_SIMULATION" }
+      ]
+    }
+  },
+  "popups": {
+    "shelf": {
+      "background_image": "lrshelf.png",
+      "hitboxes": [
+        { "id": "pop-rx1", "position": { "left": 32, "top": 32, "width": 192, "height": 96 }, "action": "SWITCH_REACTION", "value": "rx1" },
+        { "id": "pop-rx2", "position": { "left": 288, "top": 32, "width": 192, "height": 96 }, "action": "SWITCH_REACTION", "value": "rx2" },
+        { "id": "pop-rx3", "position": { "left": 32, "top": 160, "width": 192, "height": 96 }, "action": "SWITCH_REACTION", "value": "rx3" },
+        { "id": "pop-rx4", "position": { "left": 288, "top": 160, "width": 192, "height": 96 }, "action": "SWITCH_REACTION", "value": "rx4" },
+        { "id": "pop-close", "position": { "left": 480, "top": 0, "width": 32, "height": 32 }, "action": "CLOSE_POPUP" }
+      ]
+    },
+    "exit_confirm": {
+      "background_image": "lrpopupexit.png",
+      "hitboxes": [
+        { "id": "btn-exit-yes", "position": { "left": 128, "top": 160, "width": 96, "height": 32 }, "action": "RETURN_TO_MAIN_MENU" },
+        { "id": "btn-exit-no", "position": { "left": 288, "top": 160, "width": 96, "height": 32 }, "action": "CLOSE_POPUP" }
+      ],
+      "keyboard": {
+        "escape": "CLOSE_POPUP",
+        "enter": "RETURN_TO_MAIN_MENU",
+        "space": "RETURN_TO_MAIN_MENU"
+      }
+    }
+  }
+}
