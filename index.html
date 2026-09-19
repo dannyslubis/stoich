@@ -3,361 +3,650 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KemiLab: Simulasi Stoikiometri</title>
+    <title>KemiLab: Simulasi Terpadu Final</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
-        /* === SETUP DASAR === */
+        /* ==========================================================
+           0. GLOBAL & HUB CSS
+           ========================================================== */
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body, html { width: 100vw; height: 100vh; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; overflow: hidden; font-family: 'VT323', monospace; color: white; touch-action: none; }
-        
-        /* === TRANSISI FADE === */
-        #fade-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000; z-index: 9999; pointer-events: none; opacity: 1; transition: opacity 250ms ease; }
+        body, html { width: 100vw; height: 100vh; background-color: #1a1a1a; display: flex; justify-content: center; align-items: center; overflow: hidden; font-family: 'VT323', monospace, Arial, sans-serif; color: white; touch-action: none; }
+        .app-section { position: absolute; width: 100vw; height: 100vh; display: none; justify-content: center; align-items: center; }
+        #global-transition { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000; z-index: 9999; pointer-events: none; opacity: 1; transition: opacity 250ms ease; }
 
-        /* === HUB CONTAINER (16:9) === */
-        #hub-container { position: absolute; width: 100%; height: 100%; max-width: calc(100vh * (16/9)); max-height: calc(100vw * (9/16)); aspect-ratio: 16/9; background-color: #000; image-rendering: pixelated; overflow: hidden; display: block; }
+        /* Hub Layout */
+        #hub-container { position: relative; width: 100%; height: 100%; max-width: calc(100vh * (16/9)); max-height: calc(100vw * (9/16)); aspect-ratio: 16/9; background-color: #000; image-rendering: pixelated; overflow: hidden; }
         .hub-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: 100% 100%; display: none; }
         .btn-hub { position: absolute; background: transparent; border: none; cursor: pointer; z-index: 10; }
         .btn-hub:focus-visible { outline: 2px dashed #fff; outline-offset: -2px; background-color: rgba(255,255,255,0.2); }
 
-        /* === SIMULATION ENGINE CONTAINER === */
-        #engine-container { position: absolute; background-color: #000; display: none; transform-origin: center center; overflow: hidden; image-rendering: pixelated; }
-        .engine-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .engine-visual { position: absolute; background-size: 100% 100%; background-repeat: no-repeat; object-fit: contain; }
-        .engine-text { position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; }
-        
-        /* Layer interaktif */
-        #layer-hitbox, #layer-popup { pointer-events: auto; }
-        #layer-popup { display: none; z-index: 100; }
-        .btn-engine { position: absolute; background: transparent; border: none; cursor: pointer; }
-        .btn-engine:focus-visible { outline: 2px dashed #fff; outline-offset: -2px; background-color: rgba(255,255,255,0.2); }
+        /* ==========================================================
+           1. PROJECT 1 CSS: MOLECULES (TERISOLASI)
+           ========================================================== */
+        #APP_MOL #mol-game-wrapper { position: relative; width: 512px; height: 288px; transform-origin: center center; background-color: #000; }
+        #APP_MOL canvas { position: absolute; top: 0; left: 0; width: 512px; height: 288px; image-rendering: pixelated; image-rendering: crisp-edges; }
+        #APP_MOL .mol-layer { position: absolute; top: 0; left: 0; width: 512px; height: 288px; pointer-events: none; }
+        #APP_MOL .mol-layer-interactive { position: absolute; top: 0; left: 0; width: 512px; height: 288px; }
+        #APP_MOL .visual-img { position: absolute; image-rendering: pixelated; background-size: 100% 100%; background-repeat: no-repeat; }
+        #APP_MOL #mol-visual-layer .visual-img { top: 0; left: 0; width: 512px; height: 288px; }
+        #APP_MOL #mol-popup-layer { display: none; z-index: 100; }
+        #APP_MOL #mol-black-screen { position: absolute; top: 0; left: 0; width: 512px; height: 288px; background-color: black; opacity: 1; pointer-events: none; transition: opacity 0.3s ease; z-index: 200; }
+        #APP_MOL .ui-text { position: absolute; font-size: 26px; line-height: 32px; text-align: center; pointer-events: none; text-shadow: 2px 2px 0 #000; font-family: 'VT323', monospace; }
+        #APP_MOL .fallback-div { display: flex; justify-content: center; align-items: center; font-size: 14px; border: 1px solid #444; text-align: center; background-color: rgba(100, 100, 100, 0.9); }
+        #APP_MOL .fade-in { animation: molFadeIn 0.2s forwards; } #APP_MOL .fade-out { animation: molFadeOut 0.2s forwards; } #APP_MOL .pop-in { animation: molPopIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; } #APP_MOL .pop-in-slow { animation: molPopIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes molFadeIn { from { opacity: 0; } to { opacity: 1; } } @keyframes molFadeOut { from { opacity: 1; } to { opacity: 0; } } @keyframes molPopIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-        /* === ANIMASI === */
-        .anim-fade-in { animation: fadeIn 0.2s forwards; }
-        .anim-pop-in { animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        .anim-pop-in-slow { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        /* ==========================================================
+           2. PROJECT 2 CSS: MOLE BRIDGE (TERISOLASI)
+           ========================================================== */
+        #APP_MB { font-family: 'VT323', monospace; }
+        #APP_MB #game-container { position: relative; width: 100%; height: 100%; max-width: calc(100vh * (16 / 9)); max-height: calc(100vw * (9 / 16)); aspect-ratio: 16 / 9; background-color: #000; image-rendering: pixelated; image-rendering: crisp-edges; container-type: inline-size; overflow: hidden; }
+        #APP_MB .scene { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; }
+        #APP_MB .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: 100% 100%; background-position: center; background-repeat: no-repeat; image-rendering: inherit; }
+        #APP_MB .btn-grid { position: absolute; background: transparent; border: none; cursor: pointer; z-index: 10; }
+        #APP_MB .popup-layer { display: none; z-index: 20; }
+        #APP_MB #fade-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: #000; z-index: 99; pointer-events: none; opacity: 0; transition: opacity 250ms ease; }
+        #APP_MB .pop-in { animation: popInAnim 200ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; transform-origin: center center; }
+        @keyframes popInAnim { 0% { transform: scale(0.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        #APP_MB .calc-text { position: absolute; height: 11.11%; width: 25%; display: flex; align-items: center; justify-content: center; text-align: center; color: #000; font-size: 3cqw; }
+        #APP_MB #layer-canvas-mol { background-image: url('kanvasmb.png'); z-index: 1; }
+        #APP_MB #layer-bottle-mol { z-index: 2; transition: background-image 0.1s; }
+        #APP_MB #layer-salt-mol { position: absolute; left: 43.75%; top: 66.66%; width: 12.5%; height: 22.22%; display: flex; justify-content: center; align-items: center; z-index: 3; }
+        #APP_MB .salt-pile { background-color: #ffffff; border-radius: 50%; width: 0%; height: 0%; transition: all 0.3s ease; }
+        #APP_MB #layer-key-mol { background-image: url('keymb.png'); z-index: 4; pointer-events: none; }
+        #APP_MB #layer-nav-mol { background-image: url('mbkey1.png'); z-index: 5; pointer-events: none; }
+        #APP_MB #scale-display { position: absolute; left: 43.75%; top: 88.88%; width: 12.5%; height: 11.11%; display: flex; justify-content: center; align-items: center; text-align: center; color: #5b7ea4; font-size: 3.5cqw; z-index: 5; }
+        #APP_MB #popup-shelf { background-image: url('mbshelf.png'); }
+        #APP_MB #popup-calc-mol { background-image: url('popupmb.png'); }
+        #APP_MB #calc-mass-mol { left: 43.75%; top: 33.33%; } #APP_MB #calc-mr-mol { left: 43.75%; top: 44.44%; } #APP_MB #calc-result-mol { left: 43.75%; top: 55.55%; } 
+        #APP_MB #layer-canvas-partikel { background-image: url('kanvasmbp.png'); z-index: 1; }
+        #APP_MB #layer-lattice-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; cursor: grab; background-repeat: repeat, repeat; }
+        #APP_MB #layer-lattice-container:active { cursor: grabbing; }
+        #APP_MB #layer-infokey { background-image: url('mbpinfokey.png'); z-index: 3; pointer-events: none; }
+        #APP_MB #layer-zat-label { z-index: 4; pointer-events: none; } 
+        #APP_MB #layer-nav-partikel { background-image: url('mbkey2.png'); z-index: 4; pointer-events: none; }
+        #APP_MB #text-mol-display { position: absolute; left: 81.25%; top: 66.66%; width: 18.75%; height: 11.11%; display: flex; justify-content: center; align-items: center; color: white; font-size: 4cqw; z-index: 5; text-shadow: 2px 2px 0 #000; }
+        #APP_MB #popup-calc-partikel { background-image: url('popupmbp.png'); }
+        #APP_MB .calc-text-partikel { position: absolute; display: flex; align-items: center; justify-content: center; color: #000; font-size: 3.5cqw; font-weight: normal; }
+        #APP_MB #calc-input-mol { left: 37.5%; top: 44.44%; width: 18.75%; height: 11.11%; } #APP_MB #calc-result-partikel { left: 37.5%; top: 55.55%; width: 12.5%; height: 11.11%; }
+        #APP_MB #layer-canvas-molar { background-image: url('kanvasmbm.png'); z-index: 1; }
+        #APP_MB #layer-aqua { background-image: url('mbaqua11.png'); z-index: 2; }
+        #APP_MB #water-stream { position: absolute; left: 45.3%; top: 22.5%; width: 0.6%; height: 0%; background-color: rgba(180, 230, 255, 0.6); z-index: 2; transition: height 0.1s ease; }
+        #APP_MB #beaker-fluid-container { position: absolute; left: 37.5%; top: 33.33%; width: 31.25%; height: 55.55%; z-index: 2; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; overflow: hidden; border-bottom-left-radius: 3cqw; border-bottom-right-radius: 3cqw; }
+        #APP_MB #layer-liquid { width: 100%; height: 0%; background-color: rgba(180, 230, 255, 0.25); transition: height 0.1s ease, background-color 0.5s ease; }
+        #APP_MB #layer-precipitate { width: 100%; height: 0%; background-color: transparent; transition: height 0.4s ease, background-color 0.3s ease; }
+        #APP_MB #layer-stir { background-image: url('mbgstir.png'); z-index: 2; display: block; }
+        #APP_MB #layer-hand-pour { background-image: url('mbgstir1.png'); z-index: 2; display: none; }
+        #APP_MB #layer-glass { background-image: url('mbglass.png'); z-index: 3; pointer-events: none; }
+        #APP_MB #layer-key-molar { background-image: url('keymbm.png'); z-index: 4; pointer-events: none; }
+        #APP_MB #layer-key-add { background-image: url('keymbm1.png'); z-index: 5; pointer-events: none; display: none; }
+        #APP_MB #layer-nav-molar { background-image: url('mbkey3.png'); z-index: 5; pointer-events: none; }
+        #APP_MB #volume-display { position: absolute; left: 50%; top: 88.88%; width: 12.5%; height: 11.11%; display: flex; justify-content: center; align-items: center; text-align: center; color: #dcdde1; font-size: 3.5cqw; z-index: 6; }
+        #APP_MB #alert-msg { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); color: #e74c3c; font-size: 2.8cqw; font-weight: bold; text-shadow: 2px 2px 0 #000; opacity: 0; transition: opacity 0.3s ease; z-index: 7; pointer-events: none; }
+        #APP_MB #popup-molarity { background-image: url('popupmbm.png'); }
+        #APP_MB #popup-solubility { background-image: url('mbsolubility.png'); }
+        #APP_MB #calc-mol-molar { left: 43.75%; top: 33.33%; } #APP_MB #calc-liter-molar { left: 43.75%; top: 44.44%; } #APP_MB #calc-result-molar { left: 43.75%; top: 55.55%; } 
+        #APP_MB #sim-status { position: absolute; left: 31.25%; top: 11.11%; width: 25%; height: 11.11%; display: flex; align-items: center; justify-content: center; color: white; font-size: 4cqw; z-index: 21; text-shadow: 2px 2px 0 #000; }
+        #APP_MB .part-sprite { position: absolute; height: 11.11%; width: 6.25%; background-size: contain; background-position: center; background-repeat: no-repeat; z-index: 21; }
+        #APP_MB .part-text { position: absolute; height: 11.11%; width: 18.75%; display: flex; align-items: center; justify-content: flex-start; color: white; font-size: 3cqw; z-index: 21; padding-left: 1%; text-shadow: 1px 1px 0 #000; }
+        #APP_MB #ui-sprite-1 { left: 12.5%; top: 88.88%; } #APP_MB #ui-text-1 { left: 18.75%; top: 88.88%; }
+        #APP_MB #ui-sprite-2 { left: 37.5%; top: 88.88%; } #APP_MB #ui-text-2 { left: 43.75%; top: 88.88%; }
+        #APP_MB #ui-text-air { position: absolute; left: 75%; top: 88.88%; width: 12.5%; height: 11.11%; display: flex; align-items: center; justify-content: center; color: white; font-size: 3cqw; z-index: 21; text-shadow: 1px 1px 0 #000; }
+        #APP_MB #particle-canvas { position: absolute; left: 12.5%; top: 22.22%; width: 75%; height: 55.55%; z-index: 21; overflow: hidden; }
+        #APP_MB .atom-node { position: absolute; background-size: contain; background-position: center; background-repeat: no-repeat; transform-origin: center center; }
+        #APP_MB #popup-exit { background-image: url('mbpopupexit.png'); z-index: 30; }
+
+        /* ==========================================================
+           3. PROJECT 3 CSS: LIMITING REACTANT (TERISOLASI)
+           ========================================================== */
+        #APP_LR { font-family: Arial, sans-serif; }
+        #APP_LR #lr-game-container { position: relative; width: 512px; height: 288px; transform-origin: center center; image-rendering: pixelated; image-rendering: crisp-edges; }
+        #APP_LR .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #APP_LR .full-img { width: 100%; height: 100%; object-fit: contain; display: block; position: absolute; }
+        #APP_LR #lr-layer-ui { pointer-events: none; }
+        #APP_LR #lr-layer-buttons { z-index: 10; }
+        #APP_LR #lr-layer-popup { z-index: 20; display: none; }
+        #APP_LR #lr-layer-popup-exit { z-index: 30; display: none; }
+        #APP_LR #lr-transition-overlay { z-index: 999; background-color: black; opacity: 1; pointer-events: none; transition: opacity 250ms ease-in-out; }
+        #APP_LR .display-text { position: absolute; color: black; font-size: 14px; text-align: center; line-height: 32px; font-weight: bold; }
+        #APP_LR .info-container { position: absolute; display: flex; flex-direction: column; }
+        #APP_LR .info-row { height: 24px; line-height: 24px; font-size: 12px; color: black; font-weight: bold; text-align: center; }
+        #APP_LR .conclusion-text { position: absolute; height: 32px; line-height: 32px; font-size: 14px; font-weight: bold; color: black; text-align: center; }
+        #APP_LR .table-cell { position: absolute; height: 32px; line-height: 32px; font-size: 13px; font-weight: bold; color: black; text-align: center; }
+        #APP_LR sub { font-size: 0.75em; vertical-align: baseline; position: relative; bottom: -0.25em; }
+        #APP_LR .btn { position: absolute; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="fade-overlay"></div>
+    <!-- TRANSISI GLOBAL -->
+    <div id="global-transition"></div>
 
-    <!-- MAIN HUB -->
-    <div id="hub-container">
-        <div id="hub_title" class="hub-screen" style="display: block; background-image: url('titlescreen.png');">
-            <button class="btn-hub" style="left: 37.5%; top: 55.55%; width: 25%; height: 22.22%;" onclick="hubGoTo('hub_menu')"></button>
-            <button class="btn-hub" style="left: 87.5%; top: 88.88%; width: 12.5%; height: 11.11%;" onclick="hubGoTo('hub_credits')"></button>
-        </div>
-        <div id="hub_credits" class="hub-screen" style="background-image: url('credits.png');">
-            <button class="btn-hub" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="hubGoTo('hub_title')"></button>
-        </div>
-        <div id="hub_menu" class="hub-screen" style="background-image: url('menuscreen.png');">
-            <button class="btn-hub" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="hubGoTo('hub_title')"></button>
-            <button class="btn-hub" style="left: 6.25%; top: 55.55%; width: 25%; height: 22.22%;" onclick="launchProject('project_mr.json')"></button>
-            <button class="btn-hub" style="left: 37.5%; top: 55.55%; width: 25%; height: 22.22%;" onclick="launchProject('project_mb.json')"></button>
-            <button class="btn-hub" style="left: 68.75%; top: 55.55%; width: 25%; height: 22.22%;" onclick="launchProject('project_lr.json')"></button>
+    <!-- ========================================================
+         APP SECTION 0: MAIN HUB
+         ======================================================== -->
+    <div id="APP_HUB" class="app-section" style="display: flex;">
+        <div id="hub-container">
+            <div id="hub_title" class="hub-screen" style="display: block; background-image: url('titlescreen.png');">
+                <button class="btn-hub" style="left: 37.5%; top: 55.55%; width: 25%; height: 22.22%;" onclick="MainHub.goTo('hub_menu')"></button>
+                <button class="btn-hub" style="left: 87.5%; top: 88.88%; width: 12.5%; height: 11.11%;" onclick="MainHub.goTo('hub_credits')"></button>
+            </div>
+            <div id="hub_credits" class="hub-screen" style="background-image: url('credits.png');">
+                <button class="btn-hub" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="MainHub.goTo('hub_title')"></button>
+            </div>
+            <div id="hub_menu" class="hub-screen" style="background-image: url('menuscreen.png');">
+                <button class="btn-hub" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="MainHub.goTo('hub_title')"></button>
+                <button class="btn-hub" style="left: 6.25%; top: 55.55%; width: 25%; height: 22.22%;" onclick="MainHub.launchApp('MOL')"></button>
+                <button class="btn-hub" style="left: 37.5%; top: 55.55%; width: 25%; height: 22.22%;" onclick="MainHub.launchApp('MB')"></button>
+                <button class="btn-hub" style="left: 68.75%; top: 55.55%; width: 25%; height: 22.22%;" onclick="MainHub.launchApp('LR')"></button>
+            </div>
         </div>
     </div>
 
-    <!-- SIMULATION ENGINE WRAPPER -->
-    <div id="engine-container">
-        <!-- Canvas opsional untuk partikel/rendering khusus -->
-        <canvas id="engine-canvas" class="engine-layer"></canvas>
-        <div id="layer-bg" class="engine-layer"></div>
-        <div id="layer-visuals" class="engine-layer"></div>
-        <div id="layer-texts" class="engine-layer"></div>
-        <div id="layer-hitbox" class="engine-layer"></div>
-        <div id="layer-popup" class="engine-layer">
-            <div id="popup-bg" class="engine-layer"></div>
-            <div id="popup-content" class="engine-layer"></div>
+    <!-- ========================================================
+         APP SECTION 1: MOLECULES
+         ======================================================== -->
+    <div id="APP_MOL" class="app-section">
+        <div id="mol-game-wrapper">
+            <canvas id="mol-game-canvas" width="512" height="288"></canvas>
+            <div id="mol-visual-layer" class="mol-layer"></div>
+            <div id="mol-visual-btn-layer" class="mol-layer"></div>
+            <div id="mol-feedback-layer" class="mol-layer"></div> 
+            <div id="mol-hitbox-layer" class="mol-layer-interactive"></div>
+            <div id="mol-popup-layer" class="mol-layer-interactive"></div>
+            <div id="mol-black-screen"></div>
         </div>
     </div>
+
+    <!-- ========================================================
+         APP SECTION 2: MOLE BRIDGE
+         ======================================================== -->
+    <div id="APP_MB" class="app-section">
+        <div id="game-container">
+            <div id="fade-overlay"></div>
+            <!-- TIMBANGAN -->
+            <div id="scene-timbangan" class="scene" style="display: block;">
+                <div id="layer-canvas-mol" class="layer"></div>
+                <div id="layer-bottle-mol" class="layer"></div>
+                <div id="layer-salt-mol"><div id="salt-pile" class="salt-pile"></div></div>
+                <div id="layer-key-mol" class="layer"></div>
+                <div id="layer-nav-mol" class="layer"></div>
+                <div id="scale-display">0,0</div>
+                <button class="btn-grid" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="MoleBridgeApp.bukaPopupExit()"></button>
+                <button class="btn-grid" style="left: 6.25%; top: 22.22%; width: 18.75%; height: 11.11%;" onclick="MoleBridgeApp.bukaRak()"></button>
+                <button class="btn-grid" style="left: 6.25%; top: 77.77%; width: 6.25%; height: 11.11%;" onmousedown="MoleBridgeApp.startHoldMassa(event, 5)" onmouseup="MoleBridgeApp.stopHoldMassa()" onmouseleave="MoleBridgeApp.stopHoldMassa()" ontouchstart="MoleBridgeApp.startHoldMassa(event, 5)" ontouchend="MoleBridgeApp.stopHoldMassa()" ontouchcancel="MoleBridgeApp.stopHoldMassa()"></button>
+                <button class="btn-grid" style="left: 12.5%; top: 77.77%; width: 6.25%; height: 11.11%;" onmousedown="MoleBridgeApp.startHoldMassa(event, 1)" onmouseup="MoleBridgeApp.stopHoldMassa()" onmouseleave="MoleBridgeApp.stopHoldMassa()" ontouchstart="MoleBridgeApp.startHoldMassa(event, 1)" ontouchend="MoleBridgeApp.stopHoldMassa()" ontouchcancel="MoleBridgeApp.stopHoldMassa()"></button>
+                <button class="btn-grid" style="left: 18.75%; top: 77.77%; width: 6.25%; height: 11.11%;" onmousedown="MoleBridgeApp.startHoldMassa(event, 0.5)" onmouseup="MoleBridgeApp.stopHoldMassa()" onmouseleave="MoleBridgeApp.stopHoldMassa()" ontouchstart="MoleBridgeApp.startHoldMassa(event, 0.5)" ontouchend="MoleBridgeApp.stopHoldMassa()" ontouchcancel="MoleBridgeApp.stopHoldMassa()"></button>
+                <button class="btn-grid" style="left: 6.25%; top: 88.88%; width: 18.75%; height: 11.11%;" onclick="MoleBridgeApp.resetTimbangan()"></button>
+                <button class="btn-grid" style="left: 75%; top: 77.77%; width: 6.25%; height: 11.11%;" onclick="MoleBridgeApp.autoMol(1)"></button>
+                <button class="btn-grid" style="left: 81.25%; top: 77.77%; width: 6.25%; height: 11.11%;" onclick="MoleBridgeApp.autoMol(0.5)"></button>
+                <button class="btn-grid" style="left: 87.5%; top: 77.77%; width: 6.25%; height: 11.11%;" onclick="MoleBridgeApp.autoMol(0.1)"></button>
+                <button class="btn-grid" style="left: 75%; top: 88.88%; width: 18.75%; height: 11.11%;" onclick="MoleBridgeApp.bukaHitungMol()"></button>
+                <button class="btn-grid" style="left: 87.5%; top: 11.11%; width: 12.5%; height: 11.11%;" onclick="MoleBridgeApp.gotoScene('scene-partikel')"></button>
+                <button class="btn-grid" style="left: 87.5%; top: 22.22%; width: 12.5%; height: 11.11%;" onclick="MoleBridgeApp.gotoScene('scene-molaritas')"></button>
+
+                <div id="popup-shelf" class="layer popup-layer">
+                    <button class="btn-grid" style="left: 6.25%; top: 11.11%; width: 12.5%; height: 33.33%; z-index: 21;" onclick="MoleBridgeApp.pilihZat('s')"></button>
+                    <button class="btn-grid" style="left: 25%; top: 11.11%; width: 12.5%; height: 33.33%; z-index: 21;" onclick="MoleBridgeApp.pilihZat('nacl')"></button>
+                    <button class="btn-grid" style="left: 43.75%; top: 11.11%; width: 12.5%; height: 33.33%; z-index: 21;" onclick="MoleBridgeApp.pilihZat('naoh')"></button>
+                    <button class="btn-grid" style="left: 62.5%; top: 11.11%; width: 12.5%; height: 33.33%; z-index: 21;" onclick="MoleBridgeApp.pilihZat('c')"></button>
+                    <button class="btn-grid" style="left: 81.25%; top: 11.11%; width: 12.5%; height: 33.33%; z-index: 21;" onclick="MoleBridgeApp.pilihZat('fe')"></button>
+                    <button class="btn-grid" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%; z-index: 21;" onclick="MoleBridgeApp.tutupRak()"></button>
+                </div>
+                <div id="popup-calc-mol" class="layer popup-layer">
+                    <button class="btn-grid" style="left: 87.5%; top: 22.22%; width: 6.25%; height: 11.11%; z-index: 21;" onclick="MoleBridgeApp.tutupHitungMol()"></button>
+                    <div id="calc-mass-mol" class="calc-text">0,0 g</div><div id="calc-mr-mol" class="calc-text">0 g/mol</div><div id="calc-result-mol" class="calc-text">0,0 mol</div>
+                </div>
+            </div>
+            <!-- PARTIKEL -->
+            <div id="scene-partikel" class="scene">
+                <div id="layer-canvas-partikel" class="layer"></div>
+                <div id="layer-lattice-container"></div>
+                <div id="layer-infokey" class="layer"></div>
+                <div id="layer-zat-label" class="layer"></div>
+                <div id="layer-nav-partikel" class="layer"></div>
+                <div id="text-mol-display">0 mol</div>
+                <button class="btn-grid" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="MoleBridgeApp.bukaPopupExit()"></button>
+                <button class="btn-grid" style="left: 87.5%; top: 11.11%; width: 12.5%; height: 11.11%;" onclick="MoleBridgeApp.gotoScene('scene-timbangan')"></button>
+                <button class="btn-grid" style="left: 87.5%; top: 22.22%; width: 12.5%; height: 11.11%;" onclick="MoleBridgeApp.gotoScene('scene-molaritas')"></button>
+                <button class="btn-grid" style="left: 81.25%; top: 77.77%; width: 18.75%; height: 11.11%;" onclick="MoleBridgeApp.bukaHitungPartikel()"></button>
+                <div id="popup-calc-partikel" class="layer popup-layer">
+                    <button class="btn-grid" style="left: 87.5%; top: 22.22%; width: 6.25%; height: 11.11%; z-index: 21;" onclick="MoleBridgeApp.tutupHitungPartikel()"></button>
+                    <div id="calc-input-mol" class="calc-text-partikel">0 mol</div><div id="calc-result-partikel" class="calc-text-partikel">0</div>
+                </div>
+            </div>
+            <!-- MOLARITAS -->
+            <div id="scene-molaritas" class="scene">
+                <div id="layer-canvas-molar" class="layer"></div>
+                <div id="beaker-fluid-container"><div id="layer-liquid"></div><div id="layer-precipitate"></div></div>
+                <div id="water-stream"></div>
+                <div id="layer-stir" class="layer"></div><div id="layer-hand-pour" class="layer"></div><div id="layer-aqua" class="layer"></div><div id="layer-glass" class="layer"></div>
+                <div id="layer-key-molar" class="layer"></div><div id="layer-key-add" class="layer"></div><div id="layer-nav-molar" class="layer"></div>
+                <div id="volume-display">0</div><div id="alert-msg"></div>
+                <button class="btn-grid" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%;" onclick="MoleBridgeApp.bukaPopupExit()"></button>
+                <button id="btn-add-water" class="btn-grid" style="left: 6.25%; top: 33.33%; width: 18.75%; height: 11.11%;" onmousedown="MoleBridgeApp.mulaiTuangAir()" onmouseup="MoleBridgeApp.hentiTuangAir()" onmouseleave="MoleBridgeApp.hentiTuangAir()" ontouchstart="MoleBridgeApp.mulaiTuangAir()" ontouchend="MoleBridgeApp.hentiTuangAir()"></button>
+                <button id="btn-add-substance" class="btn-grid" style="left: 6.25%; top: 55.55%; width: 18.75%; height: 11.11%; display: none;" onclick="MoleBridgeApp.eksekusiTambahZat()"></button>
+                <button class="btn-grid" style="left: 6.25%; top: 77.77%; width: 18.75%; height: 11.11%;" onclick="MoleBridgeApp.resetSimulasiMolar()"></button>
+                <button class="btn-grid" style="left: 75%; top: 33.33%; width: 18.75%; height: 11.11%;" onclick="MoleBridgeApp.bukaSolubility()"></button>
+                <button class="btn-grid" style="left: 75%; top: 77.77%; width: 18.75%; height: 11.11%;" onclick="MoleBridgeApp.bukaMolaritas()"></button>
+                <button class="btn-grid" style="left: 87.5%; top: 11.11%; width: 12.5%; height: 11.11%;" onclick="MoleBridgeApp.gotoScene('scene-timbangan')"></button>
+                <div id="popup-molarity" class="layer popup-layer">
+                    <button class="btn-grid" style="left: 87.5%; top: 22.22%; width: 6.25%; height: 11.11%; z-index: 22;" onclick="MoleBridgeApp.tutupMolaritas()"></button>
+                    <div id="calc-mol-molar" class="calc-text">0,0 mol</div><div id="calc-liter-molar" class="calc-text">0,0 L</div><div id="calc-result-molar" class="calc-text">0,0 M</div>
+                </div>
+                <div id="popup-solubility" class="layer popup-layer">
+                    <button class="btn-grid" style="left: 93.75%; top: 0%; width: 6.25%; height: 11.11%; z-index: 22;" onclick="MoleBridgeApp.tutupSolubility()"></button>
+                    <div id="sim-status">Larut</div><div id="ui-sprite-1" class="part-sprite"></div><div id="ui-text-1" class="part-text">Na+</div><div id="ui-sprite-2" class="part-sprite"></div><div id="ui-text-2" class="part-text">Cl-</div><div id="ui-text-air">Air</div><div id="particle-canvas"></div>
+                </div>
+            </div>
+            <!-- POPUP EXIT -->
+            <div id="popup-exit" class="layer popup-layer">
+                <button class="btn-grid" style="left: 25%; top: 55.55%; width: 18.75%; height: 11.11%; z-index: 31;" onclick="MoleBridgeApp.konfirmasiExit(true)"></button>
+                <button class="btn-grid" style="left: 56.25%; top: 55.55%; width: 18.75%; height: 11.11%; z-index: 31;" onclick="MoleBridgeApp.konfirmasiExit(false)"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================
+         APP SECTION 3: LIMITING REACTANT
+         ======================================================== -->
+    <div id="APP_LR" class="app-section">
+        <div id="lr-game-container">
+            <div id="lr-layer-canvas" class="layer"><img id="lr-bg-img" class="full-img" src="kanvaslr.png" alt="Background"></div>
+            <div id="lr-layer-visual" class="layer" style="display: none;">
+                <img id="lr-vis-reactant" class="full-img" src="" alt="Visual Pendukung">
+                <div id="lr-vis-middle" class="layer">
+                    <img id="lr-vis-keybar-s1" class="full-img" src="keybarlr.png" style="display: none;">
+                    <img id="lr-vis-keybar-s3-a" src="" style="display: none; position: absolute; width: 96px; height: 32px;">
+                    <img id="lr-vis-keybar-s3-b" src="" style="display: none; position: absolute; width: 96px; height: 32px;">
+                </div>
+                <img id="lr-vis-statbar" class="full-img" src="" alt="Status Bar" style="display: none;">
+            </div>
+            <div id="lr-layer-ui" class="layer" style="display: none;">
+                <div id="lr-stage1-ui">
+                    <div id="lr-disp-react-a" class="display-text" style="left: 96px; top: 160px; width: 96px; height: 32px;">0,00 mol</div>
+                    <div id="lr-disp-react-b" class="display-text" style="left: 320px; top: 160px; width: 96px; height: 32px;">0,00 mol</div>
+                </div>
+                <div id="lr-stage2-ui" style="display: none;">
+                    <div class="info-container" style="left: 64px; top: 96px; width: 128px; height: 96px;">
+                        <div id="lr-stg2-mass-a" class="info-row"></div><div id="lr-stg2-mol-a" class="info-row"></div><div id="lr-stg2-coef-a" class="info-row"></div><div id="lr-stg2-ratio-a" class="info-row"></div>
+                    </div>
+                    <div class="info-container" style="left: 320px; top: 96px; width: 128px; height: 96px;">
+                        <div id="lr-stg2-mass-b" class="info-row"></div><div id="lr-stg2-mol-b" class="info-row"></div><div id="lr-stg2-coef-b" class="info-row"></div><div id="lr-stg2-ratio-b" class="info-row"></div>
+                    </div>
+                    <div id="lr-stg2-conclusion" class="conclusion-text" style="left: 32px; top: 192px; width: 448px;"></div>
+                </div>
+                <div id="lr-stage3-ui" style="display: none;">
+                    <div id="lr-layout3-container" style="display: none;">
+                        <div id="lr-l3-mula-a" class="table-cell" style="left: 64px; top: 128px; width: 96px;"></div><div id="lr-l3-mula-b" class="table-cell" style="left: 192px; top: 128px; width: 96px;"></div><div id="lr-l3-mula-p1" class="table-cell" style="left: 320px; top: 128px; width: 96px;"></div>
+                        <div id="lr-l3-rx-a" class="table-cell" style="left: 64px; top: 160px; width: 96px;"></div><div id="lr-l3-rx-b" class="table-cell" style="left: 192px; top: 160px; width: 96px;"></div><div id="lr-l3-rx-p1" class="table-cell" style="left: 320px; top: 160px; width: 96px;"></div>
+                        <div id="lr-l3-sisa-a" class="table-cell" style="left: 64px; top: 192px; width: 96px;"></div><div id="lr-l3-sisa-b" class="table-cell" style="left: 192px; top: 192px; width: 96px;"></div><div id="lr-l3-sisa-p1" class="table-cell" style="left: 320px; top: 192px; width: 96px;"></div>
+                    </div>
+                    <div id="lr-layout4-container" style="display: none;">
+                        <div id="lr-l4-mula-a" class="table-cell" style="left: 32px; top: 128px; width: 96px;"></div><div id="lr-l4-mula-b" class="table-cell" style="left: 160px; top: 128px; width: 96px;"></div><div id="lr-l4-mula-p1" class="table-cell" style="left: 288px; top: 128px; width: 96px;"></div><div id="lr-l4-mula-p2" class="table-cell" style="left: 384px; top: 128px; width: 96px;"></div>
+                        <div id="lr-l4-rx-a" class="table-cell" style="left: 32px; top: 160px; width: 96px;"></div><div id="lr-l4-rx-b" class="table-cell" style="left: 160px; top: 160px; width: 96px;"></div><div id="lr-l4-rx-p1" class="table-cell" style="left: 288px; top: 160px; width: 96px;"></div><div id="lr-l4-rx-p2" class="table-cell" style="left: 384px; top: 160px; width: 96px;"></div>
+                        <div id="lr-l4-sisa-a" class="table-cell" style="left: 32px; top: 192px; width: 96px;"></div><div id="lr-l4-sisa-b" class="table-cell" style="left: 160px; top: 192px; width: 96px;"></div><div id="lr-l4-sisa-p1" class="table-cell" style="left: 288px; top: 192px; width: 96px;"></div><div id="lr-l4-sisa-p2" class="table-cell" style="left: 384px; top: 192px; width: 96px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="lr-layer-buttons" class="layer">
+                <div id="lr-btn-close" class="btn" style="display: none; left: 480px; top: 0px; width: 32px; height: 32px;"></div>
+                <div id="lr-stage1-buttons" style="display: none;">
+                    <div id="lr-btn-shelf" class="btn" style="left: 288px; top: 0px; width: 96px; height: 32px;"></div><div id="lr-btn-mode" class="btn" style="left: 384px; top: 0px; width: 96px; height: 32px;"></div>
+                    <div id="lr-btn-min-a" class="btn" style="left: 64px; top: 160px; width: 32px; height: 32px;"></div><div id="lr-btn-plus-a" class="btn" style="left: 192px; top: 160px; width: 32px; height: 32px;"></div>
+                    <div id="lr-btn-min-b" class="btn" style="left: 288px; top: 160px; width: 32px; height: 32px;"></div><div id="lr-btn-plus-b" class="btn" style="left: 416px; top: 160px; width: 32px; height: 32px;"></div>
+                    <div id="lr-btn-next" class="btn" style="left: 192px; top: 224px; width: 128px; height: 32px;"></div>
+                </div>
+                <div id="lr-stage2-buttons" style="display: none;">
+                    <div id="lr-btn-back-stg1" class="btn" style="left: 32px; top: 224px; width: 128px; height: 32px;"></div><div id="lr-btn-to-stg3" class="btn" style="left: 352px; top: 224px; width: 128px; height: 32px;"></div>
+                </div>
+                <div id="lr-stage3-buttons" style="display: none;">
+                    <div id="lr-btn-restart" class="btn" style="left: 384px; top: 0px; width: 96px; height: 32px;"></div>
+                </div>
+            </div>
+            <div id="lr-layer-popup" class="layer">
+                <div id="lr-layer-popup-bg" class="layer"><img class="full-img" src="lrshelf.png" alt="Lemari Bahan"></div>
+                <div id="lr-layer-popup-buttons" class="layer" style="z-index: 21;">
+                    <div id="lr-pop-close" class="btn" style="left: 480px; top: 0px; width: 32px; height: 32px;"></div>
+                    <div id="lr-pop-rx1" class="btn" style="left: 32px; top: 32px; width: 192px; height: 96px;"></div><div id="lr-pop-rx2" class="btn" style="left: 288px; top: 32px; width: 192px; height: 96px;"></div>
+                    <div id="lr-pop-rx3" class="btn" style="left: 32px; top: 160px; width: 192px; height: 96px;"></div><div id="lr-pop-rx4" class="btn" style="left: 288px; top: 160px; width: 192px; height: 96px;"></div>
+                </div>
+            </div>
+            <div id="lr-layer-popup-exit" class="layer">
+                <div class="layer"><img class="full-img" src="lrpopupexit.png" alt="Konfirmasi Keluar"></div>
+                <div class="layer" style="z-index: 31;">
+                    <div id="lr-btn-exit-yes" class="btn" style="left: 128px; top: 160px; width: 96px; height: 32px;"></div><div id="lr-btn-exit-no" class="btn" style="left: 288px; top: 160px; width: 96px; height: 32px;"></div>
+                </div>
+            </div>
+            <div id="lr-transition-overlay" class="layer"></div>
+        </div>
+    </div>
+
 
     <script>
-        /* =========================================================================
-           1. SISTEM TRANSISI & HUB
-           ========================================================================= */
-        const fadeEl = document.getElementById('fade-overlay');
-        const hubContainer = document.getElementById('hub-container');
-        const engineContainer = document.getElementById('engine-container');
-        let isTransitioning = false;
-        let currentApp = 'HUB'; // 'HUB' atau 'ENGINE'
+        /* ==========================================================
+           1. LOGIKA MAIN HUB & GATEKEEPER 
+           ========================================================== */
+        const MainHub = (function() {
+            let activeApp = 'HUB'; 
+            let isTransitioning = false;
+            const transitionEl = document.getElementById('global-transition');
 
-        function doFade(callback) {
-            if (isTransitioning) return;
-            isTransitioning = true;
-            fadeEl.style.opacity = '1';
-            setTimeout(() => {
-                callback();
-                setTimeout(() => {
-                    fadeEl.style.opacity = '0';
-                    setTimeout(() => isTransitioning = false, 250);
-                }, 50);
-            }, 250);
-        }
+            function doFade(callback) {
+                if (isTransitioning) return;
+                isTransitioning = true;
+                transitionEl.style.opacity = '1';
+                setTimeout(() => { callback(); setTimeout(() => { transitionEl.style.opacity = '0'; setTimeout(() => { isTransitioning = false; }, 250); }, 50); }, 250);
+            }
 
-        function hubGoTo(screenId) {
-            doFade(() => {
-                document.querySelectorAll('.hub-screen').forEach(el => el.style.display = 'none');
-                document.getElementById(screenId).style.display = 'block';
-            });
-        }
+            function goTo(screenId) {
+                doFade(() => { document.querySelectorAll('.hub-screen').forEach(el => el.style.display = 'none'); document.getElementById(screenId).style.display = 'block'; });
+            }
 
-        /* =========================================================================
-           2. ENGINE DATA-DRIVEN (JSON PARSER)
-           ========================================================================= */
-        let projectData = null;
-        let currentSceneId = null;
-
-        async function launchProject(jsonFilename) {
-            doFade(async () => {
-                try {
-                    // Fetch data JSON dari repository
-                    const response = await fetch(jsonFilename);
-                    if (!response.ok) throw new Error("Gagal memuat " + jsonFilename);
-                    projectData = await response.json();
+            function launchApp(appId) {
+                doFade(() => {
+                    document.getElementById('APP_HUB').style.display = 'none';
+                    activeApp = appId;
                     
-                    // Setup Engine Workspace
-                    hubContainer.style.display = 'none';
-                    engineContainer.style.display = 'block';
-                    currentApp = 'ENGINE';
-                    
-                    setupEngineScaling();
-                    
-                    // Route ke scene pertama otomatis (cari scene yang tidak punya awalan spesifik atau tentukan manual)
-                    // Untuk semua simulasi kita, stage awal diset dengan nama tertentu
-                    let startScene = Object.keys(projectData.scenes)[0]; 
-                    if(projectData.project_id === 'mole_bridge') startScene = 'scene_timbangan';
-                    if(projectData.project_id === 'limiting_reactant') startScene = 'stage_1';
-                    if(projectData.project_id === 'molecules') startScene = 'slide_a'; // Mulai dari slide a (tanpa titlescreen)
-                    
-                    renderScene(startScene);
+                    if (appId === 'MOL') { document.getElementById('APP_MOL').style.display = 'flex'; MoleculesApp.start(); } 
+                    else if (appId === 'MB') { document.getElementById('APP_MB').style.display = 'flex'; MoleBridgeApp.start(); }
+                    else if (appId === 'LR') { document.getElementById('APP_LR').style.display = 'flex'; LimitingReactantApp.start(); }
+                });
+            }
 
-                } catch (error) {
-                    console.error(error);
-                    alert("Error memuat JSON. Pastikan Anda menjalankan web via Live Server / GitHub Pages.");
-                    // Kembali ke hub jika gagal
-                    hubContainer.style.display = 'block';
-                    engineContainer.style.display = 'none';
+            function returnToHub() {
+                doFade(() => {
+                    document.getElementById('APP_MOL').style.display = 'none';
+                    document.getElementById('APP_MB').style.display = 'none';
+                    document.getElementById('APP_LR').style.display = 'none';
+                    document.getElementById('APP_HUB').style.display = 'flex';
+                    activeApp = 'HUB';
+                    
+                    document.querySelectorAll('.hub-screen').forEach(el => el.style.display = 'none');
+                    document.getElementById('hub_menu').style.display = 'block';
+                });
+            }
+
+            function getActiveApp() { return activeApp; }
+
+            window.onload = () => { setTimeout(() => { transitionEl.style.opacity = '0'; }, 100); };
+
+            window.addEventListener('keydown', (e) => {
+                if (isTransitioning) return;
+                const key = e.key;
+
+                if (activeApp === 'HUB') {
+                    if (key === 'Escape') { e.preventDefault(); if (document.getElementById('hub_menu').style.display === 'block' || document.getElementById('hub_credits').style.display === 'block') goTo('hub_title'); }
+                    if (key === 'Enter' || key === ' ') { if (document.getElementById('hub_title').style.display === 'block' && document.activeElement.tagName !== 'BUTTON') { e.preventDefault(); goTo('hub_menu'); } }
                 }
             });
-        }
 
-        function setupEngineScaling() {
-            const grid = projectData.grid_size;
-            if (grid.width === '100%') {
-                // Skala Dinamis (Mole Bridge)
-                engineContainer.style.width = '100%';
-                engineContainer.style.height = '100%';
-                engineContainer.style.maxWidth = 'calc(100vh * (16/9))';
-                engineContainer.style.maxHeight = 'calc(100vw * (9/16))';
-                engineContainer.style.aspectRatio = '16/9';
-                engineContainer.style.transform = 'none';
-            } else {
-                // Skala Absolut Pixel (Molecules, Limiting Reactant)
-                engineContainer.style.width = grid.width + 'px';
-                engineContainer.style.height = grid.height + 'px';
-                engineContainer.style.maxWidth = 'none';
-                engineContainer.style.maxHeight = 'none';
-                engineContainer.style.aspectRatio = 'auto';
-                
-                // Kalkulasi transform
-                const scale = Math.min(window.innerWidth / grid.width, window.innerHeight / grid.height);
-                engineContainer.style.transform = `scale(${scale})`;
-            }
-        }
+            return { goTo, launchApp, returnToHub, getActiveApp };
+        })();
 
-        window.addEventListener('resize', () => { if(currentApp === 'ENGINE') setupEngineScaling(); });
 
-        /* =========================================================================
-           3. RENDERER (PENGGAMBAR LAYAR)
-           ========================================================================= */
-        function renderScene(sceneId) {
-            currentSceneId = sceneId;
-            const sceneData = projectData.scenes[sceneId];
+        /* ==========================================================
+           2. LOGIKA PROJECT: MOLECULES
+           ========================================================== */
+        const MoleculesApp = (function() {
+            const wrapper = document.getElementById('mol-game-wrapper'); const canvas = document.getElementById('mol-game-canvas'); const ctx = canvas.getContext('2d'); const visualLayer = document.getElementById('mol-visual-layer'); const visualBtnLayer = document.getElementById('mol-visual-btn-layer'); const feedbackLayer = document.getElementById('mol-feedback-layer'); const popupLayer = document.getElementById('mol-popup-layer'); const blackScreen = document.getElementById('mol-black-screen');
+            const TILE_SIZE = 32; const GAME_WIDTH = 512; const GAME_HEIGHT = 288;
+            let gameState = 'menu'; let slideIndex = 0; const slideSequence = ['a', 'b', 'c', 'd', 'e', 'f']; let isPopupActive = false; let slideTimer = null; let lastActionTime = 0;
+            const quizDatabase = [{ id: 1, name: 'mrqhh.png', x: 'mrans2.png', y: 'mrans1.png', z: 'mrans3.png' },{ id: 2, name: 'mrqchhhh.png', x: 'mrans16.png', y: 'mrans10.png', z: 'mrans13.png' },{ id: 3, name: 'mrqnhhh.png', x: 'mrans17.png', y: 'mrans10.png', z: 'mrans15.png' },{ id: 4, name: 'mrqhho.png', x: 'mrans18.png', y: 'mrans16.png', z: 'mrans17.png' },{ id: 5, name: 'mrqhf.png', x: 'mrans20.png', y: 'mrans10.png', z: 'mrans30.png' },{ id: 6, name: 'mrqnacl.png', x: 'mrans58a.png', y: 'mrans23.png', z: 'mrans35a.png' },{ id: 7, name: 'mrqnaoh.png', x: 'mrans40.png', y: 'mrans30.png', z: 'mrans20.png' },{ id: 8, name: 'mrqhcl.png', x: 'mrans36a.png', y: 'mrans35a.png', z: 'mrans37a.png' },{ id: 9, name: 'mrqoo.png', x: 'mrans32.png', y: 'mrans16.png', z: 'mrans24.png' },{ id: 10, name: 'mrqcoo.png', x: 'mrans44.png', y: 'mrans28.png', z: 'mrans16.png' },{ id: 11, name: 'mrqchhhoh.png', x: 'mrans32.png', y: 'mrans29.png', z: 'mrans34.png' },{ id: 12, name: 'mrqhhs.png', x: 'mrans34.png', y: 'mrans32.png', z: 'mrans17.png' },{ id: 13, name: 'mrqsoo.png', x: 'mrans64.png', y: 'mrans32.png', z: 'mrans48.png' },{ id: 14, name: 'mrqnoo.png', x: 'mrans46.png', y: 'mrans36.png', z: 'mrans30.png' },{ id: 15, name: 'mrqhcn.png', x: 'mrans27.png', y: 'mrans26.png', z: 'mrans28.png' }];
+            let currentQuizQuestions = []; let currentQIndex = 0; let score = 0; let correctCount = 0; let wrongCount = 0; let isAnswering = false; let activeSlots = {}; let timerSeconds = 300; let timerInterval = null; let timerElement = null; let popupType = null; 
+            const assets = {}; const imageList = ['kanvasmr.png', 'mrmenu.png', 'mrinacla.png', 'mrinaclb.png', 'mrinaclc.png', 'mrinacld.png', 'mrinacle.png', 'mrinaclf.png', 'mrinaclg.png', 'mrkeyilus.png', 'mrkeyilusb.png', 'mrkeyplay.png', 'mrpopupexit.png', 'mrqstart.png', 'mrq1.png', 'mrq12.png', 'mrq123.png', 'mrqquestion.png', 'mrqresult.png', 'mrkeyinfo.png', 'popupinfomr.png', 'mrkeytrue.png', 'mrkeyfalse.png']; quizDatabase.forEach(q => { imageList.push(q.name, q.x, q.y, q.z); });
+            function preloadAssets() { imageList.forEach(filename => { const img = new Image(); img.src = filename; img.onload = () => { assets[filename] = img; }; img.onerror = () => { assets[filename] = null; }; }); } preloadAssets(); 
+            function resizeGame() { const scale = Math.min(window.innerWidth / GAME_WIDTH, window.innerHeight / GAME_HEIGHT); wrapper.style.transform = `scale(${scale})`; } window.addEventListener('resize', resizeGame); resizeGame();
+            function parseTile(tile) { const cols = "abcdefghijklmnop"; return { x: cols.indexOf(tile.charAt(0).toLowerCase()) * TILE_SIZE, y: (parseInt(tile.substring(1)) - 1) * TILE_SIZE }; } function isClickInHitbox(x, y, startTile, endTile) { const start = parseTile(startTile); const end = parseTile(endTile); return (x >= start.x && x <= start.x + (end.x - start.x) + TILE_SIZE && y >= start.y && y <= start.y + (end.y - start.y) + TILE_SIZE); }
+            function addVisual(id, filename, container, animClass = 'fade-in', style = '') { const div = document.createElement('div'); div.id = id; div.className = `visual-img ${animClass}`; div.style.cssText = style; if(assets[filename]) { div.style.backgroundImage = `url('${assets[filename].src}')`; } else { div.classList.add('fallback-div'); div.innerHTML = `[${filename}]`; } container.appendChild(div); return div; } function removeVisual(id, animClass = 'fade-out', delay = 200) { const el = document.getElementById(id); if (el) { el.classList.remove('fade-in', 'pop-in', 'pop-in-slow'); el.classList.add(animClass); setTimeout(() => el.remove(), delay); } } function addText(id, text, startTile, endTile, color) { const start = parseTile(startTile); const end = parseTile(endTile); const w = (end.x - start.x) + TILE_SIZE; const div = document.createElement('div'); div.id = id; div.className = 'ui-text fade-in'; div.style.cssText = `left:${start.x}px; top:${start.y}px; width:${w}px; color:${color};`; div.innerText = text; visualBtnLayer.appendChild(div); return div; }
+            function initQuizData() { let fixed = quizDatabase.slice(0, 5); let pool = quizDatabase.slice(5).sort(() => Math.random() - 0.5).slice(0, 5); currentQuizQuestions = fixed.concat(pool); currentQIndex = 0; score = 0; correctCount = 0; wrongCount = 0; timerSeconds = 300; } function formatTime(seconds) { const m = Math.floor(seconds / 60).toString().padStart(2, '0'); const s = (seconds % 60).toString().padStart(2, '0'); return `${m}:${s}`; }
+            function startTimer() { timerElement = addText('quiz-timer', formatTime(timerSeconds), 'l1', 'n1', '#fff'); timerInterval = setInterval(() => { if (isPopupActive || MainHub.getActiveApp() !== 'MOL') return; if (timerSeconds > 0) { timerSeconds--; timerElement.innerText = formatTime(timerSeconds); } else { clearInterval(timerInterval); setTimeout(() => transitionState('quiz_result', 200), 3000); } }, 1000); }
+            function loadQuestion() { visualLayer.innerHTML = ''; visualBtnLayer.innerHTML = ''; feedbackLayer.innerHTML = ''; addVisual('q-base', 'mrqquestion.png', visualLayer); const q = currentQuizQuestions[currentQIndex]; addVisual('q-senyawa', q.name, visualLayer); const boxInfo = parseTile('o1'); addVisual('btn-info', 'mrkeyinfo.png', visualBtnLayer, 'fade-in', `left:${boxInfo.x}px; top:${boxInfo.y}px; width:32px; height:32px;`); timerElement = addText('quiz-timer', formatTime(timerSeconds), 'l1', 'n1', '#fff'); let options = [ { type: 'x', img: q.x }, { type: 'y', img: q.y }, { type: 'z', img: q.z } ].sort(() => Math.random() - 0.5); const slots = [ { id: 'A', tile: 'b7', w: 128 }, { id: 'B', tile: 'g7', w: 128 }, { id: 'C', tile: 'l7', w: 128 } ]; activeSlots = {}; options.forEach((opt, idx) => { const s = slots[idx]; const box = parseTile(s.tile); activeSlots[s.id] = { type: opt.type, tile: s.tile }; addVisual(`ans-${s.id}`, opt.img, visualBtnLayer, 'fade-in', `left:${box.x}px; top:${box.y}px; width:${s.w}px; height:32px;`); }); isAnswering = false; }
+            function evaluateAnswer(selectedSlotID) { if (isAnswering || timerSeconds <= 0) return; isAnswering = true; const selected = activeSlots[selectedSlotID]; const correctSlotID = Object.keys(activeSlots).find(key => activeSlots[key].type === 'x'); if (selected.type === 'x') { correctCount++; score += 10; const b = parseTile(selected.tile); addVisual(`fb-${selectedSlotID}`, 'mrkeytrue.png', feedbackLayer, 'pop-in', `left:${b.x}px; top:${b.y}px; width:128px; height:32px;`); } else { wrongCount++; const bWrong = parseTile(selected.tile); addVisual(`fb-${selectedSlotID}`, 'mrkeyfalse.png', feedbackLayer, 'pop-in', `left:${bWrong.x}px; top:${bWrong.y}px; width:128px; height:32px;`); const bRight = parseTile(activeSlots[correctSlotID].tile); addVisual(`fb-correct`, 'mrkeytrue.png', feedbackLayer, 'pop-in', `left:${bRight.x}px; top:${bRight.y}px; width:128px; height:32px;`); } setTimeout(() => { currentQIndex++; if (currentQIndex < 10) { [visualLayer, visualBtnLayer, feedbackLayer].forEach(layer => { Array.from(layer.children).forEach(el => { el.classList.remove('fade-in', 'pop-in'); el.classList.add('fade-out'); }); }); setTimeout(() => { loadQuestion(); }, 200); } else { clearInterval(timerInterval); transitionState('quiz_result', 200); } }, 1000); }
+            function drawBaseCanvas(filename) { ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT); if (assets[filename]) { ctx.drawImage(assets[filename], 0, 0, GAME_WIDTH, GAME_HEIGHT); } }
+            function transitionState(newState, delay = 300) { blackScreen.style.opacity = 1; setTimeout(() => { visualLayer.innerHTML = ''; visualBtnLayer.innerHTML = ''; feedbackLayer.innerHTML = ''; gameState = newState; setupState(newState); blackScreen.style.opacity = 0; }, delay); }
+            function setupState(state) { clearTimeout(slideTimer); if (state === 'menu') { drawBaseCanvas('kanvasmr.png'); addVisual('v-menu', 'mrmenu.png', visualLayer); } else if (state.startsWith('slide_')) { drawBaseCanvas('kanvasmr.png'); const sl = state.split('_')[1]; if (sl === 'g') { addVisual(`v-slide-g`, `mrinaclg.png`, visualLayer); const box = parseTile('b8'); addVisual('btn-back', 'mrkeyilusb.png', visualBtnLayer, 'pop-in', `left:${box.x}px; top:${box.y}px; width:128px; height:32px;`); } else { addVisual(`v-slide-${sl}`, `mrinacl${sl}.png`, visualLayer); if (sl === 'f') { const boxIlus = parseTile('b8'); const boxKuis = parseTile('f8'); addVisual('btn-ilus', 'mrkeyilus.png', visualBtnLayer, 'pop-in', `left:${boxIlus.x}px; top:${boxIlus.y}px; width:128px; height:32px;`); addVisual('btn-kuis', 'mrkeyplay.png', visualBtnLayer, 'pop-in', `left:${boxKuis.x}px; top:${boxKuis.y}px; width:128px; height:32px;`); } if (sl !== 'f') slideTimer = setTimeout(nextSlide, sl === 'a' ? 10000 : 5000); } } else if (state === 'quiz_start') { drawBaseCanvas('kanvasmr.png'); addVisual('q-start', 'mrqstart.png', visualLayer); } else if (state.startsWith('quiz_cd_')) { const step = state.split('_')[2]; drawBaseCanvas('kanvasmr.png'); addVisual('q-cd', `mrq${step}.png`, visualLayer, 'pop-in-slow'); slideTimer = setTimeout(() => { if (step === '1') transitionState('quiz_cd_12', 0); else if (step === '12') transitionState('quiz_cd_123', 0); else if (step === '123') { initQuizData(); startTimer(); transitionState('quiz_playing', 0); } }, 1000); } else if (state === 'quiz_playing') { drawBaseCanvas('kanvasmr.png'); loadQuestion(); } else if (state === 'quiz_result') { drawBaseCanvas('kanvasmr.png'); addVisual('q-res', 'mrqresult.png', visualLayer); addText('res-benar', correctCount.toString(), 'i4', 'j4', 'lightgreen'); addText('res-salah', wrongCount.toString(), 'i5', 'j5', 'lightcoral'); addText('res-skor', score.toString(), 'i6', 'j6', 'lightblue'); } }
+            function nextSlide() { if (Date.now() - lastActionTime < 1000) return; lastActionTime = Date.now(); clearTimeout(slideTimer); if (slideIndex < slideSequence.length - 1) { const oldSl = slideSequence[slideIndex]; slideIndex++; const newSl = slideSequence[slideIndex]; removeVisual(`v-slide-${oldSl}`); gameState = `slide_${newSl}`; setupState(gameState); } }
+            function openPopup(type) { isPopupActive = true; popupType = type; clearTimeout(slideTimer); popupLayer.style.display = 'block'; popupLayer.innerHTML = ''; const div = document.createElement('div'); div.style.cssText = "position:absolute; top:0; left:0; width:512px; height:288px; display:flex; justify-content:center; align-items:center;"; if (type === 'info') { div.innerHTML = assets['popupinfomr.png'] ? `<img src="${assets['popupinfomr.png'].src}" class="pop-in" style="width:100%; height:100%; image-rendering:pixelated; object-fit:contain; position:absolute;">` : `<div class="pop-in fallback-div" style="width:100%;height:100%;">[popupinfomr.png]</div>`; } else if (type === 'exit') { div.style.background = 'rgba(0,0,0,0.7)'; div.innerHTML = assets['mrpopupexit.png'] ? `<img src="${assets['mrpopupexit.png'].src}" style="width:100%; height:100%; image-rendering:pixelated; object-fit:contain; position:absolute;">` : `<div class="fallback-div" style="width:100%;height:100%;">[mrpopupexit.png]</div>`; } popupLayer.appendChild(div); }
+            function closePopup(action) { isPopupActive = false; if (popupType === 'info') { popupLayer.classList.add('fade-out'); setTimeout(() => { popupLayer.style.display = 'none'; popupLayer.classList.remove('fade-out'); popupLayer.innerHTML = ''; }, 200); } else { popupLayer.style.display = 'none'; popupLayer.innerHTML = ''; } if (action === 'iya') { clearInterval(timerInterval); MainHub.returnToHub(); } else if (action === 'tidak' || popupType === 'info') { if (gameState.startsWith('slide_') && gameState !== 'slide_f' && gameState !== 'slide_g') slideTimer = setTimeout(nextSlide, (gameState === 'slide_a') ? 10000 : 5000); } }
+            function handleInteraction(x, y, actionType) { const rect = wrapper.getBoundingClientRect(); const scale = rect.width / GAME_WIDTH; const intX = (x - rect.left) / scale; const intY = (y - rect.top) / scale; if (isPopupActive) { if (popupType === 'exit') { if (isClickInHitbox(intX, intY, 'e6', 'g6') || actionType === 'iya') closePopup('iya'); else if (isClickInHitbox(intX, intY, 'j6', 'l6') || actionType === 'tidak') closePopup('tidak'); } else if (popupType === 'info') { if (isClickInHitbox(intX, intY, 'p1', 'p1') || actionType === 'tidak') closePopup('tidak'); } return; } if (isClickInHitbox(intX, intY, 'p1', 'p1')) { openPopup('exit'); return; } if (gameState === 'menu') { if (isClickInHitbox(intX, intY, 'd7', 'g7')) { slideIndex = 0; transitionState('slide_a', 200); } if (isClickInHitbox(intX, intY, 'j7', 'm7')) transitionState('quiz_start', 200); } else if (gameState.startsWith('slide_')) { const sl = gameState.split('_')[1]; if (intY < 32 && actionType === 'click') return; if (sl === 'f') { if (isClickInHitbox(intX, intY, 'b8', 'e8') || actionType === 'ilustrasi') { removeVisual('btn-ilus'); removeVisual('btn-kuis'); removeVisual('v-slide-f'); gameState = 'slide_g'; setupState(gameState); } else if (isClickInHitbox(intX, intY, 'f8', 'i8') || actionType === 'kuis') transitionState('quiz_start', 200); } else if (sl === 'g') { if (isClickInHitbox(intX, intY, 'b8', 'e8') || actionType === 'next') { removeVisual('btn-back'); removeVisual('v-slide-g'); gameState = 'slide_f'; setupState(gameState); } } else { if (actionType === 'click' || actionType === 'next') nextSlide(); } } else if (gameState === 'quiz_start') { if (isClickInHitbox(intX, intY, 'h7', 'i7') || actionType === 'next') transitionState('quiz_cd_1', 0); } else if (gameState === 'quiz_playing') { if (isClickInHitbox(intX, intY, 'o1', 'o1')) openPopup('info'); else if (isClickInHitbox(intX, intY, 'b7', 'e7') || actionType === 'a') evaluateAnswer('A'); else if (isClickInHitbox(intX, intY, 'g7', 'j7') || actionType === 'b') evaluateAnswer('B'); else if (isClickInHitbox(intX, intY, 'l7', 'o7') || actionType === 'c') evaluateAnswer('C'); } else if (gameState === 'quiz_result') { if (isClickInHitbox(intX, intY, 'h8', 'i8') || actionType === 'next') { clearInterval(timerInterval); MainHub.returnToHub(); } } }
+            wrapper.addEventListener('mousedown', (e) => { if(MainHub.getActiveApp() === 'MOL') handleInteraction(e.clientX, e.clientY, 'click'); }); wrapper.addEventListener('touchstart', (e) => { if(MainHub.getActiveApp() === 'MOL') { e.preventDefault(); handleInteraction(e.touches[0].clientX, e.touches[0].clientY, 'click'); } }, { passive: false });
+            window.addEventListener('keydown', (e) => { if (MainHub.getActiveApp() !== 'MOL') return; const key = e.code; const keyChar = e.key.toLowerCase(); if (e.key === 'Escape') { if (isPopupActive) closePopup('tidak'); else openPopup('exit'); return; } if (isPopupActive) { if (key === 'Enter' || key === 'Space') handleInteraction(0,0, popupType === 'exit' ? 'iya' : 'tidak'); return; } if (key === 'Enter' || key === 'Space') { e.preventDefault(); if (gameState === 'slide_g' || gameState === 'quiz_start' || gameState === 'quiz_result' || (gameState.startsWith('slide_') && gameState !== 'slide_f' && gameState !== 'slide_g')) { handleInteraction(0, 0, 'next'); } else if (gameState === 'slide_f') { handleInteraction(0, 0, 'kuis'); } } if (gameState === 'slide_f') { if (keyChar === 'a') handleInteraction(0, 0, 'ilustrasi'); if (keyChar === 'b') handleInteraction(0, 0, 'kuis'); } if (gameState === 'quiz_playing') { if (keyChar === 'a') handleInteraction(0, 0, 'a'); if (keyChar === 'b') handleInteraction(0, 0, 'b'); if (keyChar === 'c') handleInteraction(0, 0, 'c'); } });
+            function start() { resizeGame(); blackScreen.style.opacity = 0; gameState = 'menu'; setupState('menu'); } return { start };
+        })();
+
+
+        /* ==========================================================
+           3. LOGIKA PROJECT: MOLE BRIDGE
+           ========================================================== */
+        const MoleBridgeApp = (function() {
+            const databaseZat = { 'nacl': { symbol: 'nacl', mr: 58, color: '#ffffff', larut: true, ion1: { sprite: 'mbpartna.png', text: 'Na+', charge: 1 }, ion2: { sprite: 'mbpartcl.png', text: 'Cl-', charge: -1 } }, 'naoh': { symbol: 'naoh', mr: 40, color: '#ffffff', larut: true, ion1: { sprite: 'mbpartna.png', text: 'Na+', charge: 1 }, ion2: { sprite: 'mbpartoh.png', text: 'OH-', charge: -1 } }, 'c': { symbol: 'c', mr: 12, color: '#2c3e50', larut: false, ion1: { sprite: 'mbpartc.png', text: 'Karbon', charge: 0 }, ion2: null }, 's': { symbol: 's', mr: 32, color: '#f1c40f', larut: false, ion1: { sprite: 'mbparts.png', text: 'Sulfur', charge: 0 }, ion2: null }, 'fe': { symbol: 'fe', mr: 56, color: '#95a5a6', larut: false, ion1: { sprite: 'mbpartfe.png', text: 'Besi', charge: 0 }, ion2: null } };
+            let zatAktif = databaseZat['nacl']; let massaTimbangan = 0; let isExitPopupOpen = false; let currentScene = 'scene-timbangan'; let isTransitioning = false;
+            const fadeOverlay = document.getElementById('fade-overlay');
+            function formatDesimal2(angka) { return angka === 0 ? "0" : angka.toFixed(2).replace('.', ','); } function formatMassa(angka) { return angka.toFixed(1).replace('.', ','); } function formatMol(angka) { return String(Math.round(angka * 1000) / 1000).replace('.', ','); } function getGlobalMol() { return massaTimbangan / zatAktif.mr; }
+            function doFadeTransition(durationMs, callback) { if (isTransitioning) return; isTransitioning = true; fadeOverlay.style.transition = `opacity ${durationMs}ms ease`; fadeOverlay.style.opacity = '1'; setTimeout(() => { if (callback) callback(); setTimeout(() => { fadeOverlay.style.opacity = '0'; setTimeout(() => { isTransitioning = false; }, durationMs); }, 50); }, durationMs); }
+            function tutupSemuaPopupInstant() { document.getElementById('popup-shelf').style.display = 'none'; document.getElementById('popup-shelf').classList.remove('pop-in'); document.getElementById('popup-calc-mol').style.display = 'none'; document.getElementById('popup-calc-partikel').style.display = 'none'; document.getElementById('popup-molarity').style.display = 'none'; document.getElementById('popup-solubility').style.display = 'none'; document.getElementById('popup-solubility').classList.remove('pop-in'); if (animFrameId) cancelAnimationFrame(animFrameId); document.getElementById('particle-canvas').innerHTML = ''; particles = []; tutupPopupExit(); }
             
-            // Bersihkan Layar
-            document.getElementById('layer-bg').innerHTML = '';
-            document.getElementById('layer-visuals').innerHTML = '';
-            document.getElementById('layer-texts').innerHTML = '';
-            document.getElementById('layer-hitbox').innerHTML = '';
+            function bukaPopupExit() { if (isTransitioning) return; document.getElementById('popup-exit').style.display = 'block'; isExitPopupOpen = true; }
+            function tutupPopupExit() { document.getElementById('popup-exit').style.display = 'none'; isExitPopupOpen = false; }
+            function konfirmasiExit(iya) { tutupPopupExit(); if(iya) { tutupSemuaPopupInstant(); MainHub.returnToHub(); } }
 
-            // 1. Gambar Background
-            if (sceneData.background) {
-                const bg = document.createElement('img');
-                bg.src = sceneData.background;
-                bg.className = 'engine-layer engine-visual';
-                bg.style.width = '100%'; bg.style.height = '100%';
-                document.getElementById('layer-bg').appendChild(bg);
-            }
+            const scenes = ['scene-timbangan', 'scene-partikel', 'scene-molaritas'];
+            function gotoScene(sceneId) { if (isTransitioning) return; if(sceneId === 'scene-molaritas' && massaTimbangan === 0) { alert("Harap menimbang zat terlebih dahulu di Pulau Penentuan Mol!"); return; } doFadeTransition(250, () => { tutupSemuaPopupInstant(); scenes.forEach(id => document.getElementById(id).style.display = 'none'); if (sceneId === 'scene-partikel') updateScenePartikel(); if (sceneId === 'scene-molaritas') resetSimulasiMolar(); document.getElementById(sceneId).style.display = 'block'; currentScene = sceneId; }); }
 
-            // 2. Render Visuals Statis
-            if (sceneData.visuals) {
-                sceneData.visuals.forEach(v => {
-                    const el = document.createElement('img');
-                    if(v.src) el.src = v.src;
-                    el.id = v.id;
-                    el.className = `engine-visual ${v.anim ? 'anim-'+v.anim : ''}`;
-                    applyPosition(el, v);
-                    document.getElementById('layer-visuals').appendChild(el);
-                });
-            }
+            let maxKapasitas = 100; let timerWadah = null; let holdTimeout = null; let holdInterval = null;
+            function bukaWadahSementara() { document.getElementById('layer-bottle-mol').style.backgroundImage = `url('mb${zatAktif.symbol}1.png')`; if (timerWadah) clearTimeout(timerWadah); timerWadah = setTimeout(() => { document.getElementById('layer-bottle-mol').style.backgroundImage = `url('mb${zatAktif.symbol}.png')`; }, 3000); }
+            function updateVisualMol() { document.getElementById('scale-display').innerText = formatMassa(massaTimbangan); let persentase = (massaTimbangan / maxKapasitas) * 100; document.getElementById('salt-pile').style.width = persentase + '%'; document.getElementById('salt-pile').style.height = (persentase * 0.5) + '%'; }
+            function pilihZat(simbol) { zatAktif = databaseZat[simbol]; resetTimbangan(); document.getElementById('layer-bottle-mol').style.backgroundImage = `url('mb${zatAktif.symbol}.png')`; document.getElementById('salt-pile').style.backgroundColor = zatAktif.color; tutupRak(); }
+            function startHoldMassa(e, jumlah) { if (e && e.type === 'touchstart' && e.cancelable) e.preventDefault(); tambahMassa(jumlah); stopHoldMassa(); holdTimeout = setTimeout(() => { holdInterval = setInterval(() => { tambahMassa(jumlah); }, 200); }, 1000); }
+            function stopHoldMassa() { if (holdTimeout) { clearTimeout(holdTimeout); holdTimeout = null; } if (holdInterval) { clearInterval(holdInterval); holdInterval = null; } }
+            function tambahMassa(jumlah) { if (massaTimbangan + jumlah > maxKapasitas) { stopHoldMassa(); return; } massaTimbangan += jumlah; bukaWadahSementara(); updateVisualMol(); }
+            function resetTimbangan() { massaTimbangan = 0; bukaWadahSementara(); updateVisualMol(); }
+            function autoMol(targetMol) { let targetMassa = targetMol * zatAktif.mr; if (targetMassa > maxKapasitas) return; massaTimbangan = targetMassa; bukaWadahSementara(); updateVisualMol(); }
+            function bukaHitungMol() { document.getElementById('calc-mass-mol').innerText = formatMassa(massaTimbangan) + ' g'; document.getElementById('calc-mr-mol').innerText = zatAktif.mr + ' g/mol'; document.getElementById('calc-result-mol').innerText = formatMol(getGlobalMol()) + ' mol'; document.getElementById('popup-calc-mol').style.display = 'block'; }
+            function tutupHitungMol() { document.getElementById('popup-calc-mol').style.display = 'none'; }
+            function bukaRak() { if (isTransitioning) return; const p = document.getElementById('popup-shelf'); p.classList.remove('pop-in'); void p.offsetWidth; p.classList.add('pop-in'); p.style.display = 'block'; }
+            function tutupRak() { const p = document.getElementById('popup-shelf'); if (p.style.display !== 'block' || isTransitioning) return; doFadeTransition(200, () => { p.style.display = 'none'; p.classList.remove('pop-in'); }); }
 
-            // 3. Render Hitboxes (Tombol)
-            if (sceneData.hitboxes) {
-                sceneData.hitboxes.forEach(hb => {
-                    const btn = document.createElement('button');
-                    btn.id = hb.id;
-                    btn.className = 'btn-engine';
-                    applyPosition(btn, hb);
-                    
-                    // Pasang Aksi
-                    btn.onclick = () => executeAction(hb);
-                    document.getElementById('layer-hitbox').appendChild(btn);
-                });
-            }
-
-            // 4. Handle Auto Next (Timer)
-            if (sceneData.auto_next) {
-                setTimeout(() => {
-                    if (currentSceneId === sceneId) {
-                        if(sceneData.auto_next.trigger_action) executeAction({ action: sceneData.auto_next.trigger_action });
-                        renderScene(sceneData.auto_next.target);
-                    }
-                }, sceneData.auto_next.delay_ms || sceneData.auto_next.delay);
-            }
-
-            // [CATATAN UNTUK KREATOR]
-            // Visual dinamis, teks kalkulasi (mol, massa, timer) membutuhkan Modul Logika khusus (State Manager)
-            // Di versi Engine ini, elemen dinamis dipanggil oleh fungsi trigger.
-        }
-
-        function renderPopup(popupId) {
-            const popData = projectData.popups[popupId];
-            const popLayer = document.getElementById('layer-popup');
-            const popBg = document.getElementById('popup-bg');
-            const popContent = document.getElementById('popup-content');
+            function updateScenePartikel() { let mol = getGlobalMol(); document.getElementById('text-mol-display').innerText = mol === 0 ? "0 mol" : formatDesimal2(mol) + " mol"; document.getElementById('layer-zat-label').style.backgroundImage = `url('mbp${zatAktif.symbol}.png')`; const lc = document.getElementById('layer-lattice-container'); if (mol === 0) { lc.style.backgroundImage = 'none'; } else { if(zatAktif.ion2) { lc.style.backgroundImage = `url('${zatAktif.ion1.sprite}'), url('${zatAktif.ion2.sprite}')`; lc.style.backgroundSize = '6cqw 6cqw, 6cqw 6cqw'; } else { lc.style.backgroundImage = `url('${zatAktif.ion1.sprite}')`; lc.style.backgroundSize = '6cqw 6cqw'; } } }
+            function bukaHitungPartikel() { let mol = getGlobalMol(); document.getElementById('calc-input-mol').innerText = mol === 0 ? "0 mol" : formatDesimal2(mol) + " mol"; document.getElementById('calc-result-partikel').innerText = mol === 0 ? "0" : formatDesimal2(mol * 6.022); document.getElementById('popup-calc-partikel').style.display = 'block'; }
+            function tutupHitungPartikel() { document.getElementById('popup-calc-partikel').style.display = 'none'; }
             
-            popContent.innerHTML = ''; // Clear lama
-            popLayer.style.display = 'block';
+            let isDragging = false; let startX, startY; let driftX = 0, driftY = 0; 
+            function renderInfinity() { let mol = getGlobalMol(); if (!isDragging && mol > 0) { driftX += 0.3; driftY += 0.3; } const lc = document.getElementById('layer-lattice-container'); if (zatAktif.ion2) { lc.style.backgroundPosition = `${driftX}px ${driftY}px, calc(${driftX}px + 3cqw) calc(${driftY}px + 3cqw)`; } else { lc.style.backgroundPosition = `${driftX}px ${driftY}px`; } requestAnimationFrame(renderInfinity); } renderInfinity(); 
+            const latticeContainer = document.getElementById('layer-lattice-container'); latticeContainer.addEventListener('mousedown', (e) => { if(MainHub.getActiveApp() !== 'MB') return; isDragging = true; startX = e.clientX; startY = e.clientY; }); window.addEventListener('mouseup', () => { isDragging = false; }); window.addEventListener('mouseleave', () => { isDragging = false; }); window.addEventListener('mousemove', (e) => { if (!isDragging || MainHub.getActiveApp() !== 'MB') return; driftX += e.clientX - startX; driftY += e.clientY - startY; startX = e.clientX; startY = e.clientY; }); latticeContainer.addEventListener('touchstart', (e) => { if(MainHub.getActiveApp() !== 'MB') return; isDragging = true; startX = e.touches[0].clientX; startY = e.touches[0].clientY; }); window.addEventListener('touchend', () => { isDragging = false; }); window.addEventListener('touchmove', (e) => { if (!isDragging || MainHub.getActiveApp() !== 'MB') return; driftX += e.touches[0].clientX - startX; driftY += e.touches[0].clientY - startY; startX = e.touches[0].clientX; startY = e.touches[0].clientY; });
 
-            if(popData.background_image) {
-                popBg.style.backgroundImage = `url('${popData.background_image}')`;
-                popBg.style.backgroundSize = '100% 100%';
-                popBg.style.backgroundColor = 'transparent';
-            } else if (popData.background_color) {
-                popBg.style.backgroundImage = 'none';
-                popBg.style.backgroundColor = popData.background_color;
-            }
+            let volumeAir_mL = 0; let zatTelahDituang = false; let larutanTelahDiaduk = false; let sistemSedangAnimasi = false; let tuangAirInterval = null;
+            function tampilkanPeringatan(teks) { const el = document.getElementById('alert-msg'); el.innerText = teks; el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 2500); }
+            function updateVisualBotolMiring() { document.getElementById('layer-aqua').style.backgroundImage = volumeAir_mL <= 500 ? "url('mbaqua11x.png')" : "url('mbaqua01x.png')"; }
+            function updateVisualBotolDiam() { const el = document.getElementById('layer-aqua'); if (volumeAir_mL === 0 || volumeAir_mL < 500) el.style.backgroundImage = "url('mbaqua11.png')"; else if (volumeAir_mL === 500 || volumeAir_mL < 1000) el.style.backgroundImage = "url('mbaqua01.png')"; else el.style.backgroundImage = "url('mbaqua00.png')"; }
+            function prosesTuang100mL() { if (volumeAir_mL >= 1000) { hentiTuangAir(); return; } volumeAir_mL += 100; updateVisualBotolMiring(); document.getElementById('layer-liquid').style.height = (volumeAir_mL / 1000) * 100 + '%'; let liter = volumeAir_mL / 1000; document.getElementById('volume-display').innerText = liter === 0 ? "0" : liter.toFixed(1).replace('.', ','); if (volumeAir_mL >= 100 && !zatTelahDituang) { document.getElementById('layer-key-add').style.display = 'block'; document.getElementById('btn-add-substance').style.display = 'block'; } }
+            function mulaiTuangAir() { if (sistemSedangAnimasi || volumeAir_mL >= 1000) return; document.getElementById('water-stream').style.height = '33%'; prosesTuang100mL(); tuangAirInterval = setInterval(prosesTuang100mL, 350); }
+            function hentiTuangAir() { clearInterval(tuangAirInterval); document.getElementById('water-stream').style.height = '0%'; updateVisualBotolDiam(); }
+            function eksekusiTambahZat() { if (sistemSedangAnimasi || zatTelahDituang) return; sistemSedangAnimasi = true; document.getElementById('layer-key-add').style.display = 'none'; document.getElementById('btn-add-substance').style.display = 'none'; document.getElementById('layer-hand-pour').style.display = 'block'; document.getElementById('layer-precipitate').style.height = '12%'; document.getElementById('layer-precipitate').style.backgroundColor = zatAktif.color; setTimeout(() => { document.getElementById('layer-hand-pour').style.display = 'none'; document.getElementById('layer-stir').style.backgroundImage = "url('mbgstirx.gif')"; setTimeout(() => { document.getElementById('layer-stir').style.backgroundImage = "url('mbgstir.png')"; zatTelahDituang = true; larutanTelahDiaduk = true; if(zatAktif.larut) { document.getElementById('layer-precipitate').style.height = '0%'; document.getElementById('layer-liquid').style.backgroundColor = 'rgba(230, 245, 255, 0.5)'; } sistemSedangAnimasi = false; }, 2000); }, 1000); }
+            function resetSimulasiMolar() { if (sistemSedangAnimasi) return; volumeAir_mL = 0; zatTelahDituang = false; larutanTelahDiaduk = false; document.getElementById('volume-display').innerText = "0"; document.getElementById('layer-liquid').style.height = '0%'; document.getElementById('layer-liquid').style.backgroundColor = 'rgba(180, 230, 255, 0.25)'; document.getElementById('layer-precipitate').style.height = '0%'; updateVisualBotolDiam(); document.getElementById('layer-key-add').style.display = 'none'; document.getElementById('btn-add-substance').style.display = 'none'; tutupMolaritas(); tutupSolubility(); }
+            function bukaMolaritas() { if (volumeAir_mL === 0) { tampilkanPeringatan("TAMBAHKAN AIR TERLEBIH DAHULU!"); return; } let globalMol = getGlobalMol(); let volLiters = volumeAir_mL / 1000; let hasilM = (larutanTelahDiaduk && zatAktif.larut) ? (globalMol / volLiters) : 0; document.getElementById('calc-mol-molar').innerText = formatMol(globalMol) + " mol"; document.getElementById('calc-liter-molar').innerText = (volLiters === 1 ? "1,0" : volLiters.toFixed(1).replace('.', ',')) + " L"; document.getElementById('calc-result-molar').innerText = formatMol(hasilM) + " M"; document.getElementById('popup-molarity').style.display = 'block'; }
+            function tutupMolaritas() { document.getElementById('popup-molarity').style.display = 'none'; }
 
-            if(popData.visuals) {
-                popData.visuals.forEach(v => {
-                    const el = document.createElement('img');
-                    el.src = v.src; el.className = `engine-visual anim-${v.anim || 'pop-in'}`;
-                    applyPosition(el, v);
-                    popContent.appendChild(el);
-                });
-            }
+            let particles = []; let animFrameId = null; const pCanvas = document.getElementById('particle-canvas');
+            function bukaSolubility() { if (volumeAir_mL === 0) { tampilkanPeringatan("TAMBAHKAN AIR TERLEBIH DAHULU!"); return; } if (isTransitioning) return; setupUISolubility(); mulaiEnginePartikel(); const pop = document.getElementById('popup-solubility'); pop.classList.remove('pop-in'); void pop.offsetWidth; pop.classList.add('pop-in'); pop.style.display = 'block'; }
+            function tutupSolubility() { const pop = document.getElementById('popup-solubility'); if (pop.style.display !== 'block' || isTransitioning) return; doFadeTransition(200, () => { pop.style.display = 'none'; pop.classList.remove('pop-in'); if (animFrameId) cancelAnimationFrame(animFrameId); pCanvas.innerHTML = ''; particles = []; }); }
+            function setupUISolubility() { const isLarut = larutanTelahDiaduk && zatAktif.larut; document.getElementById('sim-status').innerText = isLarut ? "Larut" : "Tidak larut"; document.getElementById('ui-sprite-1').style.backgroundImage = `url('${zatAktif.ion1.sprite}')`; document.getElementById('ui-text-1').innerText = zatAktif.ion1.text; if (zatAktif.ion2) { document.getElementById('ui-sprite-2').style.backgroundImage = `url('${zatAktif.ion2.sprite}')`; document.getElementById('ui-text-2').innerText = zatAktif.ion2.text; document.getElementById('ui-sprite-2').style.display = 'block'; document.getElementById('ui-text-2').style.display = 'flex'; } else { document.getElementById('ui-sprite-2').style.display = 'none'; document.getElementById('ui-text-2').style.display = 'none'; } }
 
-            if(popData.hitboxes) {
-                popData.hitboxes.forEach(hb => {
-                    const btn = document.createElement('button');
-                    btn.className = 'btn-engine';
-                    applyPosition(btn, hb);
-                    btn.onclick = () => executeAction(hb);
-                    popContent.appendChild(btn);
-                });
-            }
-        }
+            class Partikel { constructor(type, x, y, size, sprite, charge) { this.type = type; this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * 0.8; this.vy = (Math.random() - 0.5) * 0.8; this.size = size; this.charge = charge; this.angle = Math.random() * 360; this.element = document.createElement('div'); this.element.className = 'atom-node'; this.element.style.width = size + 'px'; this.element.style.height = size + 'px'; this.element.style.backgroundImage = `url('${sprite}')`; pCanvas.appendChild(this.element); } update(canvasWidth, canvasHeight) { this.x += this.vx; this.y += this.vy; if (this.x <= 0) { this.x = 0; this.vx *= -1; } if (this.x + this.size >= canvasWidth) { this.x = canvasWidth - this.size; this.vx *= -1; } if (this.y <= 0) { this.y = 0; this.vy *= -1; } if (this.y + this.size >= canvasHeight) { this.y = canvasHeight - this.size; this.vy *= -1; } if (this.type === 'water') { let ionTerdekat = null; let jarakTerdekat = 99999; for (let p of particles) { if (p.type === 'ion1' || p.type === 'ion2') { let dx = (p.x + p.size/2) - (this.x + this.size/2); let dy = (p.y + p.size/2) - (this.y + this.size/2); let dist = Math.sqrt(dx*dx + dy*dy); if (dist < 120 && dist < jarakTerdekat) { jarakTerdekat = dist; ionTerdekat = p; } } } if (ionTerdekat) { let targetRad = Math.atan2((ionTerdekat.y + ionTerdekat.size/2) - (this.y + this.size/2), (ionTerdekat.x + ionTerdekat.size/2) - (this.x + this.size/2)); let targetDeg = targetRad * (180 / Math.PI); if (ionTerdekat.charge === 1) this.angle = targetDeg + 90; else if (ionTerdekat.charge === -1) this.angle = targetDeg - 90; if (jarakTerdekat > 40) { this.vx += Math.cos(targetRad) * 0.03; this.vy += Math.sin(targetRad) * 0.03; } this.vx *= 0.98; this.vy *= 0.98; } else { this.angle += 0.5; } } this.element.style.left = this.x + 'px'; this.element.style.top = this.y + 'px'; this.element.style.transform = `rotate(${this.angle}deg)`; } }
+            function mulaiEnginePartikel() { pCanvas.innerHTML = ''; particles = []; let cWidth = pCanvas.clientWidth; let cHeight = pCanvas.clientHeight; let isLarut = larutanTelahDiaduk && zatAktif.larut; let globalMol = getGlobalMol(); let volLiters = volumeAir_mL / 1000; let molaritas = isLarut ? (globalMol / volLiters) : 0; let baseWaterCount = 45; let ionPairs = isLarut ? Math.min(Math.round(molaritas * 5), 25) : 0; for (let i = 0; i < baseWaterCount; i++) particles.push(new Partikel('water', Math.random() * (cWidth - 30), Math.random() * (cHeight - 30), 30, 'mbparthoh.png', 0)); if (isLarut && ionPairs > 0) { for (let i = 0; i < ionPairs; i++) { particles.push(new Partikel('ion1', Math.random() * cWidth, Math.random() * cHeight, 30, zatAktif.ion1.sprite, zatAktif.ion1.charge)); if(zatAktif.ion2) particles.push(new Partikel('ion2', Math.random() * cWidth, Math.random() * cHeight, 30, zatAktif.ion2.sprite, zatAktif.ion2.charge)); } } else if (!larutanTelahDiaduk && zatTelahDituang) { let startX = cWidth / 2 - 60; let startY = cHeight - 90; let rows = 3; let cols = 4; let spacing = 28; for (let r = 0; r < rows; r++) { for (let c = 0; c < cols; c++) { let px = startX + (c * spacing); let py = startY + (r * spacing); if (zatAktif.ion2) { let sprite = (r + c) % 2 === 0 ? zatAktif.ion1.sprite : zatAktif.ion2.sprite; let p = new Partikel('solid', px, py, 30, sprite, 0); p.vx = 0; p.vy = 0; particles.push(p); } else { let p = new Partikel('solid', px, py, 30, zatAktif.ion1.sprite, 0); p.vx = 0; p.vy = 0; particles.push(p); } } } } loopPartikel(); }
+            function loopPartikel() { let cWidth = pCanvas.clientWidth; let cHeight = pCanvas.clientHeight; for (let i = 0; i < particles.length; i++) { for (let j = i + 1; j < particles.length; j++) { let p1 = particles[i]; let p2 = particles[j]; if (p1.type === 'solid' && p2.type === 'solid') continue; let dx = (p1.x + p1.size/2) - (p2.x + p2.size/2); let dy = (p1.y + p1.size/2) - (p2.y + p2.size/2); let dist = Math.sqrt(dx*dx + dy*dy); let minDist = (p1.size + p2.size) / 2; if (dist < minDist && dist > 0) { let overlap = minDist - dist; let nx = dx / dist; let ny = dy / dist; if (p1.type !== 'solid') { p1.x += nx * (overlap / 2); p1.y += ny * (overlap / 2); } if (p2.type !== 'solid') { p2.x -= nx * (overlap / 2); p2.y -= ny * (overlap / 2); } let tempVx = p1.vx; let tempVy = p1.vy; p1.vx = p2.vx; p1.vy = p2.vy; p2.vx = tempVx; p2.vy = tempVy; } } } for (let p of particles) { p.update(cWidth, cHeight); } animFrameId = requestAnimationFrame(loopPartikel); }
 
-        /* =========================================================================
-           4. ALAT BANTU KOORDINAT
-           ========================================================================= */
-        function applyPosition(element, data) {
-            // Jika menggunakan format Tile 'b8' (Molecules)
-            if (data.startTile) {
-                const ts = projectData.grid_size.tile_size || 32;
-                const cols = "abcdefghijklmnop";
-                let startX = cols.indexOf(data.startTile.charAt(0).toLowerCase()) * ts;
-                let startY = (parseInt(data.startTile.substring(1)) - 1) * ts;
-                
-                element.style.left = startX + 'px';
-                element.style.top = startY + 'px';
-                
-                if(data.endTile) {
-                    let endX = cols.indexOf(data.endTile.charAt(0).toLowerCase()) * ts;
-                    let endY = (parseInt(data.endTile.substring(1)) - 1) * ts;
-                    element.style.width = ((endX - startX) + ts) + 'px';
-                    element.style.height = ((endY - startY) + ts) + 'px';
-                } else if (data.width_tiles) {
-                    element.style.width = (data.width_tiles * ts) + 'px';
-                    element.style.height = ((data.height_tiles || 1) * ts) + 'px';
-                }
-            } 
-            // Jika menggunakan format posisi absolut/persentase (Limiting/MoleBridge)
-            else if (data.position) {
-                const p = data.position;
-                if(p.left !== undefined) element.style.left = typeof p.left === 'number' ? p.left+'px' : p.left;
-                if(p.top !== undefined) element.style.top = typeof p.top === 'number' ? p.top+'px' : p.top;
-                if(p.width !== undefined) element.style.width = typeof p.width === 'number' ? p.width+'px' : p.width;
-                if(p.height !== undefined) element.style.height = typeof p.height === 'number' ? p.height+'px' : p.height;
-            } else {
-                element.style.width = '100%'; element.style.height = '100%';
-            }
-        }
+            window.addEventListener('keydown', (e) => {
+                if (MainHub.getActiveApp() !== 'MB') return;
+                if (isExitPopupOpen) { if (e.key === 'Enter' || e.key === ' ' || e.code === 'Space') { e.preventDefault(); konfirmasiExit(true); } else if (e.key === 'Escape') { e.preventDefault(); konfirmasiExit(false); } } 
+                else { if (e.key === 'Escape') { e.preventDefault(); if(document.getElementById('popup-shelf').style.display === 'block') tutupRak(); else if(document.getElementById('popup-calc-mol').style.display === 'block') tutupHitungMol(); else if(document.getElementById('popup-calc-partikel').style.display === 'block') tutupHitungPartikel(); else if(document.getElementById('popup-molarity').style.display === 'block') tutupMolaritas(); else if(document.getElementById('popup-solubility').style.display === 'block') tutupSolubility(); else bukaPopupExit(); } }
+            });
 
-        /* =========================================================================
-           5. ACTION ROUTER (PENGHUBUNG JSON KE LOGIKA JS)
-           ========================================================================= */
-        function executeAction(actionData) {
-            const action = actionData.action;
+            function start() { document.getElementById('layer-bottle-mol').style.backgroundImage = `url('mb${zatAktif.symbol}.png')`; updateVisualMol(); gotoScene('scene-timbangan'); }
+            return { start, gotoScene, bukaRak, tutupRak, pilihZat, startHoldMassa, stopHoldMassa, resetTimbangan, autoMol, bukaHitungMol, tutupHitungMol, bukaHitungPartikel, tutupHitungPartikel, mulaiTuangAir, hentiTuangAir, eksekusiTambahZat, resetSimulasiMolar, bukaSolubility, tutupSolubility, bukaMolaritas, tutupMolaritas, bukaPopupExit, konfirmasiExit };
+        })();
 
-            // --- FUNGSI UNIVERSAL ---
-            if (action === 'GOTO_SCENE') {
-                renderScene(actionData.target);
-            } 
-            else if (action === 'OPEN_POPUP') {
-                renderPopup(actionData.target);
-            } 
-            else if (action === 'CLOSE_POPUP') {
-                document.getElementById('layer-popup').style.display = 'none';
-            } 
-            else if (action === 'RETURN_TO_MAIN_MENU') {
-                // Membersihkan engine dan kembali ke hub
-                document.getElementById('layer-popup').style.display = 'none';
-                hubContainer.style.display = 'block';
-                engineContainer.style.display = 'none';
-                currentApp = 'HUB';
-                hubGoTo('hub_menu');
-            }
+
+        /* ==========================================================
+           4. LOGIKA PROJECT: LIMITING REACTANT
+           ========================================================== */
+        const LimitingReactantApp = (function() {
+            function resizeScreen() { const container = document.getElementById('lr-game-container'); const scale = Math.min(window.innerWidth / 512, window.innerHeight / 288); container.style.transform = `scale(${scale})`; }
+            window.addEventListener('resize', () => { if(MainHub.getActiveApp() === 'LR') resizeScreen(); });
+
+            const reactionData = {
+                "rx1": { prefix: "lrnacl", layout: 3, reactA: { name: "Na", ar: 23, coeff: 2, type: "solid" }, reactB: { name: "Cl<sub>2</sub>", ar: 71, coeff: 1, type: "gas" }, productA: { name: "NaCl", ar: 58.5, coeff: 2, type: "solid" } },
+                "rx2": { prefix: "lrhho", layout: 3, reactA: { name: "H<sub>2</sub>", ar: 2, coeff: 2, type: "gas" }, reactB: { name: "O<sub>2</sub>", ar: 32, coeff: 1, type: "gas" }, productA: { name: "H<sub>2</sub>O", ar: 18, coeff: 2, type: "liquid" } },
+                "rx3": { prefix: "lrnhhh", layout: 3, reactA: { name: "N<sub>2</sub>", ar: 28, coeff: 1, type: "gas" }, reactB: { name: "H<sub>2</sub>", ar: 2, coeff: 3, type: "gas" }, productA: { name: "NH<sub>3</sub>", ar: 17, coeff: 2, type: "gas" } },
+                "rx4": { prefix: "lrcoo", layout: 4, reactA: { name: "CH<sub>4</sub>", ar: 16, coeff: 1, type: "gas" }, reactB: { name: "O<sub>2</sub>", ar: 32, coeff: 2, type: "gas" }, productA: { name: "CO<sub>2</sub>", ar: 44, coeff: 1, type: "gas" }, productB: { name: "H<sub>2</sub>O", ar: 18, coeff: 2, type: "liquid" } }
+            };
+
+            let activeReaction = "rx1"; let currentStage = 1; let mode = 'mol'; let inventory = { reactantA: 0, reactantB: 0 };
+            const config = { mol: { max: 10, step: 0.1, unit: 'mol', holdSpeed: 100 }, mass: { max: 100, step: 0.05, unit: 'g', holdSpeed: 50 } };
+
+            const assets = [
+                'kanvaslr.png', 'kanvaslrr.png', 'kanvaslrt.png', 'lrshelf.png', 'lrpopupexit.png',
+                'statbarlr.png', 'statbarlrm.png', 'statbarlrr.png', 'statbarlrt.png', 'keybarlr.png', 'keybarlrt1.png', 'keybarlrt2.png',
+                'lrnacl1.png', 'lrnacl2.png', 'lrnacl3.png', 'lrhho1.png', 'lrhho2.png', 'lrhho3.png', 'lrnhhh1.png', 'lrnhhh2.png', 'lrnhhh3.png', 'lrcoo1.png', 'lrcoo2.png', 'lrcoo3.png'
+            ];
             
-            // --- FUNGSI SPESIFIK SIMULASI ---
-            // Di sinilah Logic Controller khusus (Timbangan, Kuis, Reaksi) akan dipanggil
-            else {
-                console.log(`Menjalankan aksi spesifik: ${action} dengan nilai ${actionData.value || actionData.target}`);
-                // [Tahap Berikutnya: Mengaitkan fungsi spesifik JS seperti tambahMassa(), dll]
-            }
-        }
+            let isInitialized = false; let loaded = 0;
+            assets.forEach(src => {
+                const img = new Image();
+                img.onload = img.onerror = () => { loaded++; if(loaded === assets.length) { setupControls(); isInitialized = true; } };
+                img.src = src;
+            });
 
-        /* Keyboard Routing Global */
-        window.addEventListener('keydown', (e) => {
-            if (currentApp === 'HUB') {
-                if (e.key === 'Escape' && document.getElementById('hub_title').style.display !== 'block') {
-                    hubGoTo('hub_title');
-                }
-            } else if (currentApp === 'ENGINE') {
-                if (e.key === 'Escape') {
-                    // Panggil popup exit_confirm jika esc ditekan di dalam engine
-                    if(projectData && projectData.popups && projectData.popups['exit_confirm']) {
-                        renderPopup('exit_confirm');
-                    }
+            const overlay = document.getElementById('lr-transition-overlay');
+            function doTransition(fadeType, msIn, msOut, midCallback) {
+                overlay.style.transition = `opacity ${msIn}ms ease-in-out`; overlay.style.backgroundColor = fadeType === 'pop' ? 'rgba(0,0,0,0.6)' : 'black'; overlay.style.opacity = '1';
+                setTimeout(() => { midCallback(); overlay.style.transition = `opacity ${msOut}ms ease-in-out`; overlay.style.opacity = '0'; }, msIn);
+            }
+
+            function formatNumberFixed(num) { return Number(num).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+            function formatNumberMax(num) { return Number(num).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+
+            function updateDisplay() { let unit = config[mode].unit; document.getElementById('lr-disp-react-a').innerHTML = `${formatNumberFixed(inventory.reactantA)} ${unit}`; document.getElementById('lr-disp-react-b').innerHTML = `${formatNumberFixed(inventory.reactantB)} ${unit}`; }
+            function modifyInventory(target, isAdd) { let max = config[mode].max; inventory[target] += isAdd ? config[mode].step : -config[mode].step; inventory[target] = Math.max(0, Math.min(max, inventory[target])); inventory[target] = Math.round(inventory[target] * 100) / 100; updateDisplay(); }
+
+            function setupHold(id, target, isAdd) {
+                const btn = document.getElementById(id); let holdTimeout, holdInterval;
+                const startHold = (e) => { if (e) e.preventDefault(); modifyInventory(target, isAdd); holdTimeout = setTimeout(() => { holdInterval = setInterval(() => modifyInventory(target, isAdd), config[mode].holdSpeed); }, 1000); };
+                const stopHold = (e) => { if (e) e.preventDefault(); clearTimeout(holdTimeout); clearInterval(holdInterval); };
+                btn.addEventListener('mousedown', startHold); btn.addEventListener('touchstart', startHold);
+                ['mouseup', 'mouseleave', 'touchend'].forEach(evt => btn.addEventListener(evt, stopHold));
+            }
+
+            function switchReaction(rxId) {
+                const pop = document.getElementById('lr-layer-popup');
+                doTransition('black', 200, 200, () => {
+                    activeReaction = rxId; inventory = { reactantA: 0, reactantB: 0 }; mode = 'mol';
+                    document.getElementById('lr-bg-img').src = 'kanvaslr.png'; document.getElementById('lr-vis-reactant').src = `${reactionData[activeReaction].prefix}1.png`; document.getElementById('lr-vis-statbar').src = 'statbarlr.png'; pop.style.display = 'none'; updateDisplay();
+                });
+            }
+
+            function goToStage1() {
+                doTransition('black', 300, 300, () => {
+                    currentStage = 1; document.getElementById('lr-bg-img').src = 'kanvaslr.png'; document.getElementById('lr-vis-reactant').src = `${reactionData[activeReaction].prefix}1.png`;
+                    document.getElementById('lr-vis-keybar-s1').style.display = 'block'; document.getElementById('lr-vis-keybar-s3-a').style.display = 'none'; document.getElementById('lr-vis-keybar-s3-b').style.display = 'none';
+                    document.getElementById('lr-vis-statbar').src = (mode === 'mol') ? 'statbarlr.png' : 'statbarlrm.png'; document.getElementById('lr-vis-statbar').style.display = 'block';
+                    document.getElementById('lr-layer-visual').style.display = 'block'; document.getElementById('lr-layer-ui').style.display = 'block'; document.getElementById('lr-btn-close').style.display = 'block';
+                    document.getElementById('lr-stage1-ui').style.display = 'block'; document.getElementById('lr-stage2-ui').style.display = 'none'; document.getElementById('lr-stage3-ui').style.display = 'none';
+                    document.getElementById('lr-stage1-buttons').style.display = 'block'; document.getElementById('lr-stage2-buttons').style.display = 'none'; document.getElementById('lr-stage3-buttons').style.display = 'none'; updateDisplay();
+                });
+            }
+
+            function goToStage2() {
+                doTransition('black', 250, 250, () => {
+                    currentStage = 2; document.getElementById('lr-bg-img').src = 'kanvaslrr.png'; document.getElementById('lr-vis-reactant').src = `${reactionData[activeReaction].prefix}2.png`;
+                    document.getElementById('lr-vis-keybar-s1').style.display = 'none'; document.getElementById('lr-vis-statbar').src = 'statbarlrr.png';
+                    document.getElementById('lr-stage1-ui').style.display = 'none'; document.getElementById('lr-stage2-ui').style.display = 'block';
+                    document.getElementById('lr-stage1-buttons').style.display = 'none'; document.getElementById('lr-stage2-buttons').style.display = 'block'; calculateLimitingReactant();
+                });
+            }
+
+            function goToStage3() {
+                doTransition('black', 250, 250, () => {
+                    currentStage = 3; document.getElementById('lr-bg-img').src = 'kanvaslrt.png'; document.getElementById('lr-vis-reactant').src = `${reactionData[activeReaction].prefix}3.png`; document.getElementById('lr-vis-statbar').src = 'statbarlrt.png';
+                    document.getElementById('lr-stage2-ui').style.display = 'none'; document.getElementById('lr-stage3-ui').style.display = 'block';
+                    document.getElementById('lr-stage2-buttons').style.display = 'none'; document.getElementById('lr-stage3-buttons').style.display = 'block'; calculateMRSTable();
+                });
+            }
+
+            function restartSimulation() { inventory = { reactantA: 0, reactantB: 0 }; mode = 'mol'; goToStage1(); }
+
+            function openExitPopup() { const popExit = document.getElementById('lr-layer-popup-exit'); popExit.style.display = 'block'; popExit.style.transform = 'none'; popExit.style.opacity = '1'; }
+            function closeExitPopup() { document.getElementById('lr-layer-popup-exit').style.display = 'none'; }
+
+            function getCurrentMoles() {
+                const rData = reactionData[activeReaction]; let molA, molB;
+                if(mode === 'mol') { molA = inventory.reactantA; molB = inventory.reactantB; } else { molA = inventory.reactantA / rData.reactA.ar; molB = inventory.reactantB / rData.reactB.ar; }
+                return { molA, molB, rData };
+            }
+
+            function calculateLimitingReactant() {
+                const { molA, molB, rData } = getCurrentMoles(); let massA = molA * rData.reactA.ar; let massB = molB * rData.reactB.ar; let ratioA = molA / rData.reactA.coeff; let ratioB = molB / rData.reactB.coeff;
+                document.getElementById('lr-stg2-mass-a').innerHTML = `massa: ${formatNumberFixed(massA)} g`; document.getElementById('lr-stg2-mol-a').innerHTML = `mol: ${formatNumberFixed(molA)} mol`; document.getElementById('lr-stg2-coef-a').innerHTML = `koef: ${rData.reactA.coeff}`; document.getElementById('lr-stg2-ratio-a').innerHTML = `rasio: ${formatNumberMax(ratioA)}`;
+                document.getElementById('lr-stg2-mass-b').innerHTML = `massa: ${formatNumberFixed(massB)} g`; document.getElementById('lr-stg2-mol-b').innerHTML = `mol: ${formatNumberFixed(molB)} mol`; document.getElementById('lr-stg2-coef-b').innerHTML = `koef: ${rData.reactB.coeff}`; document.getElementById('lr-stg2-ratio-b').innerHTML = `rasio: ${formatNumberMax(ratioB)}`;
+                const nameA = rData.reactA.name; const nameB = rData.reactB.name;
+                let conclusion = (ratioA < ratioB) ? `Karena ${nameA} &lt; ${nameB}, maka ${nameA} adalah pereaksi pembatas` : (ratioB < ratioA) ? `Karena ${nameA} &gt; ${nameB}, maka ${nameB} adalah pereaksi pembatas` : `Karena ${nameA} = ${nameB}, tidak ada pereaksi pembatas`;
+                document.getElementById('lr-stg2-conclusion').innerHTML = conclusion;
+            }
+
+            function calculateMRSTable() {
+                const { molA, molB, rData } = getCurrentMoles(); let ratioA = molA / rData.reactA.coeff; let ratioB = molB / rData.reactB.coeff; let limitingRatio = Math.min(ratioA, ratioB);
+                let rxA = limitingRatio * rData.reactA.coeff; let rxB = limitingRatio * rData.reactB.coeff; let rxP1 = limitingRatio * rData.productA.coeff; let sisaA = molA - rxA; let sisaB = molB - rxB;
+                const imgA = document.getElementById('lr-vis-keybar-s3-a'); const imgB = document.getElementById('lr-vis-keybar-s3-b'); imgA.style.display = 'block'; imgB.style.display = 'block';
+                if (ratioA < ratioB) { imgA.src = 'keybarlrt1.png'; imgB.src = 'keybarlrt2.png'; } else if (ratioB < ratioA) { imgA.src = 'keybarlrt2.png'; imgB.src = 'keybarlrt1.png'; } else { imgA.src = 'keybarlrt1.png'; imgB.src = 'keybarlrt1.png'; }
+                if (rData.layout === 3) {
+                    imgA.style.left = '64px'; imgA.style.top = '224px'; imgB.style.left = '192px'; imgB.style.top = '224px';
+                    document.getElementById('lr-layout3-container').style.display = 'block'; document.getElementById('lr-layout4-container').style.display = 'none';
+                    document.getElementById('lr-l3-mula-a').innerHTML = `${formatNumberFixed(molA)} mol`; document.getElementById('lr-l3-mula-b').innerHTML = `${formatNumberFixed(molB)} mol`; document.getElementById('lr-l3-mula-p1').innerHTML = `-`;
+                    document.getElementById('lr-l3-rx-a').innerHTML = `${formatNumberFixed(rxA)} mol`; document.getElementById('lr-l3-rx-b').innerHTML = `${formatNumberFixed(rxB)} mol`; document.getElementById('lr-l3-rx-p1').innerHTML = `${formatNumberFixed(rxP1)} mol`;
+                    document.getElementById('lr-l3-sisa-a').innerHTML = Math.abs(sisaA) < 0.001 ? `-` : `${formatNumberFixed(sisaA)} mol`; document.getElementById('lr-l3-sisa-b').innerHTML = Math.abs(sisaB) < 0.001 ? `-` : `${formatNumberFixed(sisaB)} mol`; document.getElementById('lr-l3-sisa-p1').innerHTML = Math.abs(rxP1) < 0.001 ? `-` : `${formatNumberFixed(rxP1)} mol`;
+                } else if (rData.layout === 4) {
+                    imgA.style.left = '32px'; imgA.style.top = '224px'; imgB.style.left = '160px'; imgB.style.top = '224px';
+                    let rxP2 = limitingRatio * rData.productB.coeff;
+                    document.getElementById('lr-layout3-container').style.display = 'none'; document.getElementById('lr-layout4-container').style.display = 'block';
+                    document.getElementById('lr-l4-mula-a').innerHTML = `${formatNumberFixed(molA)} mol`; document.getElementById('lr-l4-mula-b').innerHTML = `${formatNumberFixed(molB)} mol`; document.getElementById('lr-l4-mula-p1').innerHTML = `-`; document.getElementById('lr-l4-mula-p2').innerHTML = `-`;
+                    document.getElementById('lr-l4-rx-a').innerHTML = `${formatNumberFixed(rxA)} mol`; document.getElementById('lr-l4-rx-b').innerHTML = `${formatNumberFixed(rxB)} mol`; document.getElementById('lr-l4-rx-p1').innerHTML = `${formatNumberFixed(rxP1)} mol`; document.getElementById('lr-l4-rx-p2').innerHTML = `${formatNumberFixed(rxP2)} mol`;
+                    document.getElementById('lr-l4-sisa-a').innerHTML = Math.abs(sisaA) < 0.001 ? `-` : `${formatNumberFixed(sisaA)} mol`; document.getElementById('lr-l4-sisa-b').innerHTML = Math.abs(sisaB) < 0.001 ? `-` : `${formatNumberFixed(sisaB)} mol`; document.getElementById('lr-l4-sisa-p1').innerHTML = Math.abs(rxP1) < 0.001 ? `-` : `${formatNumberFixed(rxP1)} mol`; document.getElementById('lr-l4-sisa-p2').innerHTML = Math.abs(rxP2) < 0.001 ? `-` : `${formatNumberFixed(rxP2)} mol`;
                 }
             }
-        });
 
-        // Tampilkan Hub saat pertama kali dimuat
-        window.onload = () => { setTimeout(() => { fadeEl.style.opacity = '0'; }, 100); };
+            function setupControls() {
+                document.getElementById('lr-btn-close').addEventListener('click', openExitPopup);
+                document.getElementById('lr-btn-exit-yes').addEventListener('click', () => { document.getElementById('lr-layer-popup-exit').style.display = 'none'; MainHub.returnToHub(); });
+                document.getElementById('lr-btn-exit-no').addEventListener('click', closeExitPopup);
+                document.getElementById('lr-btn-mode').addEventListener('click', () => { mode = (mode === 'mol') ? 'mass' : 'mol'; document.getElementById('lr-vis-statbar').src = (mode === 'mol') ? 'statbarlr.png' : 'statbarlrm.png'; inventory = { reactantA: 0, reactantB: 0 }; updateDisplay(); });
+                setupHold('lr-btn-min-a', 'reactantA', false); setupHold('lr-btn-plus-a', 'reactantA', true); setupHold('lr-btn-min-b', 'reactantB', false); setupHold('lr-btn-plus-b', 'reactantB', true);
+                document.getElementById('lr-btn-next').addEventListener('click', goToStage2); document.getElementById('lr-btn-back-stg1').addEventListener('click', () => doTransition('black', 250, 250, goToStage1)); document.getElementById('lr-btn-to-stg3').addEventListener('click', goToStage3);
+                document.getElementById('lr-btn-restart').addEventListener('click', restartSimulation);
+                const popShelf = document.getElementById('lr-layer-popup');
+                document.getElementById('lr-btn-shelf').addEventListener('click', () => { popShelf.style.display = 'block'; popShelf.style.transform = 'scale(0.8)'; popShelf.style.opacity = '0'; setTimeout(() => { popShelf.style.transition = 'transform 200ms, opacity 200ms'; popShelf.style.transform = 'scale(1)'; popShelf.style.opacity = '1'; }, 10); });
+                document.getElementById('lr-pop-close').addEventListener('click', () => doTransition('black', 200, 200, () => popShelf.style.display = 'none'));
+                document.getElementById('lr-pop-rx1').addEventListener('click', () => switchReaction('rx1')); document.getElementById('lr-pop-rx2').addEventListener('click', () => switchReaction('rx2')); document.getElementById('lr-pop-rx3').addEventListener('click', () => switchReaction('rx3')); document.getElementById('lr-pop-rx4').addEventListener('click', () => switchReaction('rx4'));
+
+                document.addEventListener('keydown', (e) => {
+                    if (MainHub.getActiveApp() !== 'LR') return;
+                    const isShelfOpen = popShelf.style.display === 'block'; const popExit = document.getElementById('lr-layer-popup-exit'); const isExitOpen = popExit.style.display === 'block';
+                    if (isExitOpen) { if (e.key === 'Escape') { closeExitPopup(); } else if (e.key === 'Enter' || e.key === ' ') { popExit.style.display = 'none'; MainHub.returnToHub(); } } 
+                    else if (isShelfOpen) { if (e.key === 'Escape') { doTransition('black', 200, 200, () => popShelf.style.display = 'none'); } } 
+                    else { if (e.key === 'Escape') { openExitPopup(); } }
+                });
+            }
+
+            function start() {
+                resizeScreen();
+                if (!isInitialized) { setupControls(); isInitialized = true; } // Fallback jika onload terlewat
+                inventory = { reactantA: 0, reactantB: 0 }; mode = 'mol';
+                document.getElementById('lr-layer-popup').style.display = 'none'; document.getElementById('lr-layer-popup-exit').style.display = 'none';
+                goToStage1();
+            }
+            return { start };
+        })();
+
     </script>
 </body>
 </html>
